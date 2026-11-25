@@ -1011,14 +1011,19 @@ function datiAnno(anno){
 }
 const barre = (righe, max) => righe.map(([nome, v]) => `<div class="barra"><div class="testa"><span>${esc(nome)}</span><b>${euro(v)}</b></div>
   <div class="fondo"><div class="pieno" style="width:${max ? Math.max(2, Math.round(v / max * 100)) : 0}%"></div></div></div>`).join('');
+/* differenza > 0: Filippo ha pagato più della sua parte, quindi Simona gli deve la differenza */
+const diffAnno = (c) => c === 0 ? 'pari' : `${NOMI[c > 0 ? 'simona' : 'filippo']} deve ${euro(Math.abs(c))} a ${NOMI[c > 0 ? 'filippo' : 'simona']}`;
 function disegnaRiepilogo(){
   const d = datiAnno(annoCorrente);
   $('#anno-nome').textContent = annoCorrente;
   const riga = (t, v, cl='') => `<div class="riga-tot ${cl}"><span>${t}</span><b>${v}</b></div>`;
   $('#r-totali').innerHTML = !d.spese.length ? '<p class="info">Nessuna spesa registrata in questo anno.</p>' :
     riga('Totale spese', euro(d.tot) + ` <span class="info">(${d.spese.length})</span>`, 'grande')
-    + riga('<span class="chi filippo">Filippo</span>: pagato / a suo carico', `${euro(d.pagF)} / ${euro(d.caricoF)}`)
-    + riga('<span class="chi simona">Simona</span>: pagato / a suo carico', `${euro(d.pagS)} / ${euro(d.caricoS)}`)
+    + riga('<span class="chi filippo">Filippo</span> ha pagato', euro(d.pagF))
+    + riga('<span class="chi filippo">Filippo</span> doveva pagare <span class="info">(sua parte)</span>', euro(d.caricoF))
+    + riga('<span class="chi simona">Simona</span> ha pagato', euro(d.pagS))
+    + riga('<span class="chi simona">Simona</span> doveva pagare <span class="info">(sua parte)</span>', euro(d.caricoS))
+    + riga('Differenza delle spese dell\'anno', diffAnno(d.pagF - d.caricoF))
     + (d.pag.length ? riga('Pagamenti tra voi', `F→S ${euro(d.pagFS)} · S→F ${euro(d.pagSF)}`) : '');
   const maxCat = d.perCat[0]?.[1] || 0;
   $('#r-cat').innerHTML = d.perCat.length ? barre(d.perCat, maxCat) : '<p class="info">—</p>';
@@ -1057,8 +1062,9 @@ async function pdfAnno(){
     columnStyles: { 0: { cellWidth: 80, textColor: [111,106,128] }, 1: { fontStyle: 'bold' } },
     body: [
       ['Totale spese', `${euro(d.tot)} (${d.spese.length} spese)`],
-      ['Filippo: pagato / a suo carico', `${euro(d.pagF)} / ${euro(d.caricoF)}`],
-      ['Simona: pagato / a suo carico', `${euro(d.pagS)} / ${euro(d.caricoS)}`],
+      ['Filippo ha pagato / doveva pagare', `${euro(d.pagF)} / ${euro(d.caricoF)}`],
+      ['Simona ha pagato / doveva pagare', `${euro(d.pagS)} / ${euro(d.caricoS)}`],
+      ['Differenza delle spese dell\'anno', diffAnno(d.pagF - d.caricoF)],
       ['Pagamenti da Filippo a Simona', euro(d.pagFS)],
       ['Pagamenti da Simona a Filippo', euro(d.pagSF)],
       ['Totale detraibile (730)', euro(d.tot730)],
