@@ -332,11 +332,12 @@
 <div class="velo nascosto" id="fin-pag">
   <form class="foglio" id="form-pag" autocomplete="off">
     <h2 id="titolo-pag">Registra pagamento</h2>
-    <p class="info">Quando uno dei due salda l'altro (bonifico, contanti…).</p>
     <div id="p-sola-lettura" class="avviso nascosto"></div>
     <fieldset id="p-campi">
-    <label>Chi paga</label>
-    <div class="segmenti" id="p-da"><button type="button" data-v="filippo">Filippo → Simona</button><button type="button" data-v="simona">Simona → Filippo</button></div>
+    <div class="segmenti" id="p-tipo"><button type="button" data-v="pagamento">💶 Pagamento</button><button type="button" data-v="regolazione">⚖️ Saldo di partenza / regolazione</button></div>
+    <p class="info" id="p-spiega"></p>
+    <label id="p-da-label">Chi paga</label>
+    <div class="segmenti" id="p-da"><button type="button" data-v="filippo"></button><button type="button" data-v="simona"></button></div>
     <div class="due">
       <div><label for="p-imp">Importo (€)</label><input id="p-imp" required inputmode="decimal"></div>
       <div><label for="p-data">Data</label><input id="p-data" type="date" required></div>
@@ -387,7 +388,7 @@ const nomeMese = (ym) => new Date(ym+'-15T12:00').toLocaleDateString('it-IT',{mo
 const spostaMese = (ym, d) => { const [y,m] = ym.split('-').map(Number); const t = new Date(y, m-1+d, 1); return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}`; };
 const nuovoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
 function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.remove('nascosto'); clearTimeout(toast._t); toast._t = setTimeout(()=>t.classList.add('nascosto'), 2600); }
-const icona = (m) => m.tipo === 'pagamento' ? '💶' : (CATEGORIE[m.categoria] || ICONA_ALTRO);
+const icona = (m) => m.tipo === 'pagamento' ? '💶' : m.tipo === 'regolazione' ? '⚖️' : (CATEGORIE[m.categoria] || ICONA_ALTRO);
 
 /* Quanto un movimento sposta il credito di Filippo verso Simona (in centesimi).
    Positivo = Simona deve a Filippo. */
@@ -398,6 +399,7 @@ function quotaFCent(m){
 }
 function effetto(m){
   if (m.tipo === 'pagamento') return m.da === 'simona' ? -m.importo : m.importo;
+  if (m.tipo === 'regolazione') return m.deve === 'simona' ? m.importo : -m.importo; // debito riportato: non è una spesa
   const quotaF = quotaFCent(m);
   return m.pagatoDa === 'filippo' ? (m.importo - quotaF) : -quotaF;
 }
@@ -577,16 +579,21 @@ function disegna(){
   if (filtro !== 'tutte' && filtro !== 'pagamenti' && !cats.includes(filtro)) filtro = 'tutte';
   const chip = (v, t) => `<button class="chip ${filtro===v?'attivo':''}" data-f="${esc(v)}">${t}</button>`;
   $('#filtri').innerHTML = chip('tutte','Tutte') + cats.map(c => chip(c, `${CATEGORIE[c]||ICONA_ALTRO} ${esc(c)}`)).join('')
-    + (delMese.some(m=>m.tipo==='pagamento') ? chip('pagamenti','💶 Pagamenti') : '');
+    + (delMese.some(m=>m.tipo!=='spesa') ? chip('pagamenti','💶 Pagamenti e regolazioni') : '');
 
-  const vis = delMese.filter(m => filtro === 'tutte' ? true : filtro === 'pagamenti' ? m.tipo === 'pagamento' : (m.tipo === 'spesa' && m.categoria === filtro));
+  const vis = delMese.filter(m => filtro === 'tutte' ? true : filtro === 'pagamenti' ? m.tipo !== 'spesa' : (m.tipo === 'spesa' && m.categoria === filtro));
   if (!vis.length){ $('#lista').innerHTML = `<div class="vuoto">Nessun movimento in questo mese.<br>Tocca “Aggiungi spesa” per iniziare.</div>`; return; }
 
   let html = '', giorno = '';
   for (const m of vis){
     if (m.data !== giorno){ giorno = m.data; html += `<div class="giorno">${dataLunga(giorno)}</div>`; }
     const e = effetto(m), mio = io === 'filippo' ? e : -e; // >0 = a mio favore
-    if (m.tipo === 'pagamento'){
+    if (m.tipo === 'regolazione'){
+      html += `<button class="mov pag da-${m.creatoDa} ${nonVisto(m)?'nonvista':''}" data-id="${m.id}"><div class="ico">⚖️</div><div class="centro">
+        <div class="titolo">Regolazione: ${NOMI[m.deve]} deve a ${NOMI[m.a]}</div>
+        <div class="dett">${badge(m)}${esc(m.note || 'Saldo di partenza / regolazione')}</div></div>
+        <div class="dx"><div class="imp">${euro(m.importo)}</div></div></button>`;
+    } else if (m.tipo === 'pagamento'){
       html += `<button class="mov pag da-${m.creatoDa} ${nonVisto(m)?'nonvista':''}" data-id="${m.id}"><div class="ico">💶</div><div class="centro">
         <div class="titolo">${NOMI[m.da]} ha pagato ${NOMI[ALTRO(m.da)]}</div>
         <div class="dett">${badge(m)}${esc(m.note || 'Pagamento')}</div></div>
@@ -830,25 +837,49 @@ $('#s-elimina').onclick = async () => {
 
 /* ---------- finestra pagamento ---------- */
 let pagInModifica = null;
+function tipoPagamento(t){
+  segm($('#p-tipo'), t);
+  const reg = t === 'regolazione', b = $('#p-da').querySelectorAll('button');
+  b[0].textContent = reg ? 'Filippo deve a Simona' : 'Filippo → Simona';
+  b[1].textContent = reg ? 'Simona deve a Filippo' : 'Simona → Filippo';
+  $('#p-da-label').textContent = reg ? 'Chi deve' : 'Chi paga';
+  $('#p-spiega').textContent = reg
+    ? 'Per riportare un debito che esisteva già (per esempio il saldo di Splitwise) o un accordo tra voi. Sposta il saldo ma non conta come spesa per le bambine.'
+    : 'Quando uno dei due salda l\'altro (bonifico, contanti…).';
+  $('#p-note').placeholder = reg ? 'Es. saldo riportato da Splitwise' : 'Es. bonifico';
+  if (!pagInModifica) $('#titolo-pag').textContent = reg ? 'Saldo di partenza / regolazione' : 'Registra pagamento';
+}
+$('#p-tipo').onclick = (e) => {
+  const v = e.target.dataset.v; if (!v) return;
+  tipoPagamento(v);
+  if (!pagInModifica){ if (v === 'regolazione'){ $('#p-imp').value = ''; segm($('#p-da'), io); $('#p-autore').textContent = ''; } else propostaPagamento(); }
+};
+function propostaPagamento(){
+  const credito = movimenti.reduce((s,x) => s + effetto(x), 0);
+  segm($('#p-da'), credito > 0 ? 'simona' : credito < 0 ? 'filippo' : io);
+  $('#p-imp').value = credito ? centInput(Math.abs(credito)) : '';
+  $('#p-autore').textContent = credito ? 'Importo proposto: il saldo attuale, per azzerare il conto.' : '';
+}
 function apriPagamento(m){
   pagInModifica = m || null;
-  const credito = movimenti.reduce((s,x) => s + effetto(x), 0);
-  const debitore = credito > 0 ? 'simona' : credito < 0 ? 'filippo' : io;
-  $('#titolo-pag').textContent = m ? 'Modifica pagamento' : 'Registra pagamento';
-  segm($('#p-da'), m?.da || debitore);
-  $('#p-imp').value = m ? (m.importo/100).toFixed(2).replace('.', ',') : (credito ? (Math.abs(credito)/100).toFixed(2).replace('.', ',') : '');
+  tipoPagamento(m?.tipo || 'pagamento');
+  if (m){
+    $('#titolo-pag').textContent = m.tipo === 'regolazione' ? 'Regolazione' : 'Modifica pagamento';
+    segm($('#p-da'), m.tipo === 'regolazione' ? m.deve : m.da);
+    $('#p-imp').value = centInput(m.importo);
+  } else propostaPagamento();
   $('#p-data').value = m?.data || oggiISO();
   $('#p-note').value = m?.note || '';
   const mio = puoModificare(m);
   $('#p-campi').disabled = !mio;
   $('#p-sola-lettura').classList.toggle('nascosto', mio);
-  if (!mio) $('#p-sola-lettura').innerHTML = `Pagamento registrato da <b class="chi ${m.creatoDa}">${NOMI[m.creatoDa]}</b>: solo ${m.creatoDa === 'simona' ? 'lei' : 'lui'} può modificarlo o eliminarlo.`;
-  if (m && !mio) $('#titolo-pag').textContent = 'Pagamento';
+  if (!mio) $('#p-sola-lettura').innerHTML = `${m.tipo === 'regolazione' ? 'Regolazione' : 'Pagamento'} registrato da <b class="chi ${m.creatoDa}">${NOMI[m.creatoDa]}</b>: solo ${m.creatoDa === 'simona' ? 'lei' : 'lui'} può modificarlo o eliminarlo.`;
+  if (m && !mio) $('#titolo-pag').textContent = m.tipo === 'regolazione' ? 'Regolazione' : 'Pagamento';
   $('#p-salva').classList.toggle('nascosto', !mio);
   $('#fin-pag [data-chiudi]').textContent = mio ? 'Annulla' : 'Chiudi';
   if (m && nonVisto(m)) segnaVisto(m);
   $('#p-elimina').classList.toggle('nascosto', !m || !mio);
-  $('#p-autore').textContent = m ? `Registrato da ${NOMI[m.creatoDa] || '—'}` : (credito ? 'Importo proposto: il saldo attuale, per azzerare il conto.' : '');
+  if (m) $('#p-autore').textContent = `Registrato da ${NOMI[m.creatoDa] || '—'}`;
   $('#fin-pag').classList.remove('nascosto'); document.body.classList.add('bloccato'); $('#fin-pag .foglio').scrollTop = 0;
 }
 $('#p-da').onclick = (e) => { if (e.target.dataset.v) segm($('#p-da'), e.target.dataset.v); };
@@ -857,12 +888,12 @@ $('#form-pag').onsubmit = async (e) => {
   if (!puoModificare(pagInModifica)) return;
   const importo = parseEuro($('#p-imp').value);
   if (!importo){ toast('Importo non valido'); return; }
-  const v = pagInModifica, da = segmVal($('#p-da'));
-  const m = { id: v?.id || nuovoId(), tipo: 'pagamento', da, a: ALTRO(da), importo, data: $('#p-data').value,
+  const v = pagInModifica, chi = segmVal($('#p-da')), tipo = segmVal($('#p-tipo')) || 'pagamento';
+  const m = { id: v?.id || nuovoId(), tipo, ...(tipo === 'regolazione' ? { deve: chi } : { da: chi }), a: ALTRO(chi), importo, data: $('#p-data').value,
     note: $('#p-note').value.trim(), creatoDa: v?.creatoDa || io, creatoIl: v?.creatoIl || Date.now(),
     ...(v ? { modificatoDa: io, modificatoIl: Date.now() } : {}),
     stato: v?.stato || null, statoDa: v?.statoDa || null, commenti: v?.commenti || [], vistoDa: { ...(v?.vistoDa || {}), [io]: Date.now() } };
-  try { await db.salva(m); chiudi(); meseCorrente = m.data.slice(0,7); disegna(); toast('Pagamento registrato'); }
+  try { await db.salva(m); chiudi(); meseCorrente = m.data.slice(0,7); disegna(); toast(tipo === 'regolazione' ? 'Regolazione registrata' : 'Pagamento registrato'); }
   catch (err){ toast('Errore: ' + (err.message || err)); }
 };
 $('#p-elimina').onclick = async () => {
@@ -924,7 +955,7 @@ async function creaPDF(){
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const ym = meseCorrente, titoloMese = nomeMese(ym);
   const delMese = [...movimenti.filter(m => m.data.startsWith(ym))].sort((a,b) => a.data.localeCompare(b.data) || a.creatoIl - b.creatoIl);
-  const spese = delMese.filter(m => m.tipo === 'spesa'), pag = delMese.filter(m => m.tipo === 'pagamento');
+  const spese = delMese.filter(m => m.tipo === 'spesa'), pag = delMese.filter(m => m.tipo !== 'spesa');
   const fineMese = spostaMese(ym, 1) + '-01';
   const saldoPrima = movimenti.filter(m => m.data < ym + '-01').reduce((s,m) => s + effetto(m), 0);
   const saldoDopo = movimenti.filter(m => m.data < fineMese).reduce((s,m) => s + effetto(m), 0);
@@ -970,11 +1001,13 @@ async function creaPDF(){
 
   if (pag.length){
     doc.setFont('helvetica','bold'); doc.setFontSize(12);
-    doc.text('Pagamenti tra genitori', 14, doc.lastAutoTable.finalY + 9);
+    doc.text('Pagamenti e regolazioni tra genitori', 14, doc.lastAutoTable.finalY + 9);
     doc.autoTable({
       startY: doc.lastAutoTable.finalY + 12,
-      head: [['Data','Da','A','Note','Importo']],
-      body: pag.map(m => [dataBreve(m.data), NOMI[m.da], NOMI[m.a], m.note || '', euro(m.importo)]),
+      head: [['Data','Tipo','Dettaglio','Note','Importo']],
+      body: pag.map(m => m.tipo === 'regolazione'
+        ? [dataBreve(m.data), 'Regolazione', `${NOMI[m.deve]} deve a ${NOMI[m.a]}`, m.note || '', euro(m.importo)]
+        : [dataBreve(m.data), 'Pagamento', `${NOMI[m.da]} ha dato a ${NOMI[m.a]}`, m.note || '', euro(m.importo)]),
       styles: { fontSize: 8.5, cellPadding: 2 }, headStyles: { fillColor: [31,138,91] }, columnStyles: { 4: { halign: 'right' } },
     });
   }
@@ -1131,7 +1164,7 @@ $('#btn-pdf').onclick = creaPDF;
 $('#mese-prec').onclick = () => { meseCorrente = spostaMese(meseCorrente, -1); filtro = 'tutte'; disegna(); };
 $('#mese-succ').onclick = () => { meseCorrente = spostaMese(meseCorrente, 1); filtro = 'tutte'; disegna(); };
 $('#filtri').onclick = (e) => { const b = e.target.closest('[data-f]'); if (b){ filtro = b.dataset.f; disegna(); } };
-$('#lista').onclick = (e) => { const b = e.target.closest('[data-id]'); if (!b) return; const m = movimenti.find(x => x.id === b.dataset.id); if (m) (m.tipo === 'pagamento' ? apriPagamento : apriSpesa)(m); };
+$('#lista').onclick = (e) => { const b = e.target.closest('[data-id]'); if (!b) return; const m = movimenti.find(x => x.id === b.dataset.id); if (m) (m.tipo === 'spesa' ? apriSpesa : apriPagamento)(m); };
 $('#btn-esci').onclick = () => db.esci();
 
 /* ---------- avvio ---------- */
