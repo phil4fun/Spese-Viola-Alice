@@ -302,10 +302,11 @@
     </div>
     <label for="s-note">Note</label>
     <textarea id="s-note" maxlength="300" placeholder="Facoltative"></textarea>
-    <label>Foto scontrino</label>
-    <input id="s-foto" type="file" accept="image/*">
-    <img id="s-foto-anteprima" class="foto-anteprima nascosto" alt="Scontrino">
-    <button type="button" id="s-foto-togli" class="btn pericolo nascosto" style="margin-top:8px">Togli foto</button>
+    <label>Scontrino o fattura (foto o PDF)</label>
+    <input id="s-foto" type="file" accept="image/*,application/pdf">
+    <img id="s-foto-anteprima" class="foto-anteprima nascosto" alt="Allegato">
+    <button type="button" id="s-pdf-apri" class="btn secondario nascosto" style="margin-top:8px">📄 Apri PDF</button>
+    <button type="button" id="s-foto-togli" class="btn pericolo nascosto" style="margin-top:8px">Togli allegato</button>
     </fieldset>
     <p class="info" id="s-autore"></p>
     <div id="s-confronto" class="confronto nascosto">
@@ -344,6 +345,11 @@
     </div>
     <label for="p-note">Note</label>
     <input id="p-note" maxlength="120" placeholder="Es. bonifico">
+    <label>Contabile o ricevuta (foto o PDF)</label>
+    <input id="p-foto" type="file" accept="image/*,application/pdf">
+    <img id="p-foto-anteprima" class="foto-anteprima nascosto" alt="Allegato">
+    <button type="button" id="p-pdf-apri" class="btn secondario nascosto" style="margin-top:8px">📄 Apri PDF</button>
+    <button type="button" id="p-foto-togli" class="btn pericolo nascosto" style="margin-top:8px">Togli allegato</button>
     </fieldset>
     <p class="info" id="p-autore"></p>
     <div class="azioni">
@@ -601,12 +607,12 @@ function disegna(){
     const e = effetto(m), mio = io === 'filippo' ? e : -e; // >0 = a mio favore
     if (m.tipo === 'regolazione'){
       html += `<button class="mov pag da-${m.creatoDa} ${nonVisto(m)?'nonvista':''}" data-id="${m.id}"><div class="ico">⚖️</div><div class="centro">
-        <div class="titolo">Regolazione: ${NOMI[m.deve]} deve a ${NOMI[m.a]}</div>
+        <div class="titolo">Regolazione: ${NOMI[m.deve]} deve a ${NOMI[m.a]}${m.foto ? ' 📎' : ''}</div>
         <div class="dett">${badge(m)}${esc(m.note || 'Saldo di partenza / regolazione')}</div></div>
         <div class="dx"><div class="imp">${euro(m.importo)}</div></div></button>`;
     } else if (m.tipo === 'pagamento'){
       html += `<button class="mov pag da-${m.creatoDa} ${nonVisto(m)?'nonvista':''}" data-id="${m.id}"><div class="ico">💶</div><div class="centro">
-        <div class="titolo">${NOMI[m.da]} ha pagato ${NOMI[ALTRO(m.da)]}</div>
+        <div class="titolo">${NOMI[m.da]} ha pagato ${NOMI[ALTRO(m.da)]}${m.foto ? ' 📎' : ''}</div>
         <div class="dett">${badge(m)}${esc(m.note || 'Pagamento')}</div></div>
         <div class="dx"><div class="imp">${euro(m.importo)}</div></div></button>`;
     } else {
@@ -623,7 +629,7 @@ function disegna(){
 }
 
 /* ---------- finestra spesa ---------- */
-let spesaInModifica = null, fotoNuova = undefined; // undefined = invariata, null = tolta, string = nuova
+let spesaInModifica = null;
 const segm = (box, v) => box.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
 const segmVal = (box) => box.querySelector('button.on')?.dataset.v;
 
@@ -685,7 +691,7 @@ $('#s-voci').addEventListener('click', (e) => {
   aggiornaTotaleVoci();
 });
 function apriSpesa(m){
-  spesaInModifica = m || null; fotoNuova = undefined;
+  spesaInModifica = m || null;
   $('#titolo-spesa').textContent = m ? 'Modifica spesa' : 'Nuova spesa';
   $('#s-desc').value = m?.descrizione || '';
   $('#s-imp').value = m ? (m.importo/100).toFixed(2).replace('.', ',') : '';
@@ -705,11 +711,8 @@ function apriSpesa(m){
   $('#s-detr-int').value = m?.detraibile?.intestatario || 'filippo';
   $('#s-detr-box').classList.toggle('nascosto', !m?.detraibile);
   $('#s-note').value = m?.note || '';
-  $('#s-foto').value = '';
-  const ant = $('#s-foto-anteprima'); ant.classList.add('nascosto'); ant.removeAttribute('src');
-  $('#s-foto-togli').classList.add('nascosto');
   const mia = puoModificare(m);
-  if (m?.foto){ db.leggiFoto(m.id).then(u => { if (u && spesaInModifica?.id === m.id){ ant.src = u; ant.classList.remove('nascosto'); $('#s-foto-togli').classList.toggle('nascosto', !mia); } }); }
+  azzeraAllegato('s', m, mia);
   $('#s-campi').disabled = !mia;
   $('#s-sola-lettura').classList.toggle('nascosto', mia);
   if (!mia) $('#s-sola-lettura').innerHTML = `Spesa inserita da <b class="chi ${m.creatoDa}">${NOMI[m.creatoDa]}</b>: puoi segnarla o commentarla, ma solo ${m.creatoDa === 'simona' ? 'lei' : 'lui'} può modificarla o eliminarla.`;
@@ -726,13 +729,51 @@ function apriSpesa(m){
 $('#s-cat').onchange = () => { $('#s-cat-altro-box').classList.toggle('nascosto', $('#s-cat').value !== '__altro'); if ($('#s-cat').value === '__altro') $('#s-cat-altro').focus(); };
 $('#s-quota').oninput = aggiornaQuota;
 $('#s-pagato').onclick = (e) => { if (e.target.dataset.v) segm($('#s-pagato'), e.target.dataset.v); };
-$('#s-foto').onchange = async () => {
-  const f = $('#s-foto').files[0]; if (!f) return;
-  try { fotoNuova = await comprimiFoto(f); const a = $('#s-foto-anteprima'); a.src = fotoNuova; a.classList.remove('nascosto'); $('#s-foto-togli').classList.remove('nascosto'); }
-  catch { toast('Non riesco a leggere questa immagine'); }
-};
-$('#s-foto-togli').onclick = () => { fotoNuova = null; $('#s-foto').value = ''; $('#s-foto-anteprima').classList.add('nascosto'); $('#s-foto-togli').classList.add('nascosto'); };
-$('#s-foto-anteprima').onclick = () => { const w = window.open(); if (w) w.document.write(`<img src="${$('#s-foto-anteprima').src}" style="max-width:100%">`); };
+/* ---------- allegati (foto o PDF) per spese e pagamenti ---------- */
+// stato per finestra: nuovo = undefined (invariato) | null (tolto) | dataURL (nuovo)
+const allegati = { s: { nuovo: undefined, url: null }, p: { nuovo: undefined, url: null } };
+const MAX_PDF = 650 * 1024; // un documento Firestore arriva a 1 MB e il PDF in base64 cresce di 1/3
+const ePdf = (url) => typeof url === 'string' && url.startsWith('data:application/pdf');
+function mostraAllegato(x, url, modificabile = true){
+  allegati[x].url = url || null;
+  const img = $(`#${x}-foto-anteprima`), pdf = !!url && ePdf(url);
+  img.classList.toggle('nascosto', !url || pdf);
+  if (url && !pdf) img.src = url; else img.removeAttribute('src');
+  $(`#${x}-pdf-apri`).classList.toggle('nascosto', !pdf);
+  $(`#${x}-foto-togli`).classList.toggle('nascosto', !url || !modificabile);
+}
+function azzeraAllegato(x, m, modificabile){
+  allegati[x].nuovo = undefined; $(`#${x}-foto`).value = ''; mostraAllegato(x, null);
+  if (m?.foto) db.leggiFoto(m.id).then(u => {
+    const aperto = x === 's' ? spesaInModifica : pagInModifica;
+    if (u && aperto?.id === m.id && allegati[x].nuovo === undefined) mostraAllegato(x, u, modificabile);
+  }).catch(() => {});
+}
+const leggiFileComeUrl = (f) => new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = ko; r.readAsDataURL(f); });
+function apriDataUrl(url){
+  const [testa, b64] = url.split(','), mime = testa.slice(5).split(';')[0];
+  const bin = atob(b64), arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  const u = URL.createObjectURL(new Blob([arr], { type: mime }));
+  if (!window.open(u, '_blank')) location.href = u;
+}
+for (const x of ['s', 'p']){
+  $(`#${x}-foto`).onchange = async () => {
+    const f = $(`#${x}-foto`).files[0]; if (!f) return;
+    try {
+      let url;
+      if (f.type === 'application/pdf' || /\.pdf$/i.test(f.name)){
+        if (f.size > MAX_PDF){ toast(`PDF troppo grande (${Math.round(f.size/1024)} KB, massimo 650 KB)`); $(`#${x}-foto`).value = ''; return; }
+        url = await leggiFileComeUrl(f);
+        if (!ePdf(url)) url = 'data:application/pdf;base64,' + url.split(',')[1];
+      } else url = await comprimiFoto(f);
+      allegati[x].nuovo = url; mostraAllegato(x, url);
+    } catch { toast('Non riesco a leggere questo file'); }
+  };
+  $(`#${x}-foto-togli`).onclick = () => { allegati[x].nuovo = null; $(`#${x}-foto`).value = ''; mostraAllegato(x, null); };
+  $(`#${x}-foto-anteprima`).onclick = () => allegati[x].url && apriDataUrl(allegati[x].url);
+  $(`#${x}-pdf-apri`).onclick = () => allegati[x].url && apriDataUrl(allegati[x].url);
+}
 
 /* ---------- detraibile 730 ---------- */
 let detrToccato = false; // l'importo detraibile è stato scritto a mano?
@@ -824,7 +865,8 @@ $('#form-spesa').onsubmit = async (e) => {
     categoria, per: $('#s-per').value, pagatoDa: segmVal($('#s-pagato')),
     quotaFilippo: voci ? Math.round(voci.reduce((s,v) => s + v.importo * v.quotaFilippo, 0) / importo) : +$('#s-quota').value,
     voci: voci || null, detraibile, note: $('#s-note').value.trim(),
-    foto: fotoNuova === undefined ? !!vecchia?.foto : !!fotoNuova,
+    foto: allegati.s.nuovo === undefined ? !!vecchia?.foto : !!allegati.s.nuovo,
+    allegato: allegati.s.nuovo === undefined ? (vecchia?.allegato || null) : (ePdf(allegati.s.nuovo) ? 'pdf' : allegati.s.nuovo ? 'foto' : null),
     creatoDa: vecchia?.creatoDa || io, creatoIl: vecchia?.creatoIl || Date.now(),
     ...(vecchia ? { modificatoDa: io, modificatoIl: Date.now() } : {}),
     // dopo una modifica il "va bene" dell'altro non vale più; commenti e "visto" restano
@@ -833,8 +875,8 @@ $('#form-spesa').onsubmit = async (e) => {
   };
   $('#s-salva').disabled = true;
   try {
-    if (typeof fotoNuova === 'string') await db.salvaFoto(m.id, fotoNuova);
-    if (fotoNuova === null && vecchia?.foto) await db.togliFoto(m.id);
+    if (typeof allegati.s.nuovo === 'string') await db.salvaFoto(m.id, allegati.s.nuovo);
+    if (allegati.s.nuovo === null && vecchia?.foto) await db.togliFoto(m.id);
     await db.salva(m);
     chiudi(); meseCorrente = m.data.slice(0,7); disegna();
     toast(vecchia ? 'Spesa aggiornata' : 'Spesa aggiunta');
@@ -883,6 +925,7 @@ function apriPagamento(m){
   $('#p-note').value = m?.note || '';
   const mio = puoModificare(m);
   $('#p-campi').disabled = !mio;
+  azzeraAllegato('p', m, mio);
   $('#p-sola-lettura').classList.toggle('nascosto', mio);
   if (!mio) $('#p-sola-lettura').innerHTML = `${m.tipo === 'regolazione' ? 'Regolazione' : 'Pagamento'} registrato da <b class="chi ${m.creatoDa}">${NOMI[m.creatoDa]}</b>: solo ${m.creatoDa === 'simona' ? 'lei' : 'lui'} può modificarlo o eliminarlo.`;
   if (m && !mio) $('#titolo-pag').textContent = m.tipo === 'regolazione' ? 'Regolazione' : 'Pagamento';
@@ -902,9 +945,14 @@ $('#form-pag').onsubmit = async (e) => {
   const v = pagInModifica, chi = segmVal($('#p-da')), tipo = segmVal($('#p-tipo')) || 'pagamento';
   const m = { id: v?.id || nuovoId(), tipo, ...(tipo === 'regolazione' ? { deve: chi } : { da: chi }), a: ALTRO(chi), importo, data: $('#p-data').value,
     note: $('#p-note').value.trim(), creatoDa: v?.creatoDa || io, creatoIl: v?.creatoIl || Date.now(),
+    foto: allegati.p.nuovo === undefined ? !!v?.foto : !!allegati.p.nuovo,
+    allegato: allegati.p.nuovo === undefined ? (v?.allegato || null) : (ePdf(allegati.p.nuovo) ? 'pdf' : allegati.p.nuovo ? 'foto' : null),
     ...(v ? { modificatoDa: io, modificatoIl: Date.now() } : {}),
     stato: v?.stato || null, statoDa: v?.statoDa || null, commenti: v?.commenti || [], vistoDa: { ...(v?.vistoDa || {}), [io]: Date.now() } };
-  try { await db.salva(m); chiudi(); meseCorrente = m.data.slice(0,7); disegna(); toast(tipo === 'regolazione' ? 'Regolazione registrata' : 'Pagamento registrato'); }
+  try {
+    if (typeof allegati.p.nuovo === 'string') await db.salvaFoto(m.id, allegati.p.nuovo);
+    if (allegati.p.nuovo === null && v?.foto) await db.togliFoto(m.id);
+    await db.salva(m); chiudi(); meseCorrente = m.data.slice(0,7); disegna(); toast(tipo === 'regolazione' ? 'Regolazione registrata' : 'Pagamento registrato'); }
   catch (err){ if (!connessioneChiusa(err)) toast('Errore: ' + (err.message || err)); }
 };
 $('#p-elimina').onclick = async () => {
@@ -1147,12 +1195,13 @@ async function pdf730(){
       styles: { fontSize: 8.5, cellPadding: 2 }, headStyles: { fillColor: [31,138,91] }, footStyles: { fillColor: [223,243,233], textColor: [34,29,51] },
       columnStyles: { 5: { halign: 'right' }, 6: { halign: 'right' } } });
   }
-  // allegati: foto degli scontrini, due per pagina
-  let pos = 0;
+  // allegati: foto degli scontrini due per pagina; i PDF vengono accodati alla fine
+  let pos = 0; const pdfDaUnire = [];
   for (let i = 0; i < allegati.length; i++){
     const m = allegati[i];
     let url = null; try { url = await db.leggiFoto(m.id); } catch {}
     if (!url) continue;
+    if (ePdf(url)){ pdfDaUnire.push({ n: i + 1, m, url }); continue; }
     const dim = await dimensioniImg(url); if (!dim) continue;
     if (pos === 0){ doc.addPage(); doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Allegati: scontrini', 14, 14); }
     const top = pos === 0 ? 20 : 152, boxW = 182, boxH = 122;
@@ -1162,8 +1211,33 @@ async function pdf730(){
     doc.addImage(url, 'JPEG', 14 + (boxW - w) / 2, top + 3, w, h);
     pos = (pos + 1) % 2;
   }
-  numeriPagine(doc);
-  doc.save(`Spese detraibili Viola e Alice ${annoCorrente}.pdf`);
+  const nome = `Spese detraibili Viola e Alice ${annoCorrente}.pdf`;
+  if (!pdfDaUnire.length){ numeriPagine(doc); doc.save(nome); return; }
+  try {
+    if (!window.PDFLib) await caricaScript('https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js');
+    const { PDFDocument, StandardFonts, rgb } = window.PDFLib;
+    const fin = await PDFDocument.load(doc.output('arraybuffer'));
+    const font = await fin.embedFont(StandardFonts.Helvetica);
+    for (const a of pdfDaUnire){
+      try {
+        const src = await PDFDocument.load(a.url.split(',')[1], { ignoreEncryption: true });
+        const pagine = await fin.copyPages(src, src.getPageIndices());
+        pagine.forEach((pg, j) => {
+          fin.addPage(pg);
+          if (j === 0){
+            const { width, height } = pg.getSize();
+            const t = `All. ${a.n} - ${dataBreve(a.m.data)} - ${a.m.descrizione} - detraibile ${euro(a.m.detraibile.importo)}`.replace(/\u202f|\u00a0/g, ' ');
+            pg.drawRectangle({ x: 0, y: height - 18, width, height: 18, color: rgb(1, 0.97, 0.87) });
+            pg.drawText(t, { x: 10, y: height - 13, size: 9, font, color: rgb(0.13, 0.11, 0.2) });
+          }
+        });
+      } catch { toast(`Non riesco ad allegare il PDF di "${a.m.descrizione}"`); }
+    }
+    const n = fin.getPageCount();
+    fin.getPages().forEach((pg, i) => pg.drawText(`Pagina ${i+1} di ${n}`, { x: pg.getSize().width - 80, y: 10, size: 8, font, color: rgb(0.55, 0.55, 0.55) }));
+    const blob = new Blob([await fin.save()], { type: 'application/pdf' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nome; document.body.appendChild(a); a.click(); a.remove();
+  } catch { toast('Non riesco a unire i PDF allegati: scarico solo il riepilogo'); numeriPagine(doc); doc.save(nome); }
 }
 $('#btn-pdf-anno').onclick = pdfAnno;
 $('#btn-pdf-730').onclick = pdf730;
