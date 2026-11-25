@@ -1,0 +1,21 @@
+rules_version = '2';
+
+// Regole di sicurezza per "Spese Viola & Alice".
+// Solo i due indirizzi Google qui sotto possono leggere e scrivere i dati.
+// Sostituisci EMAIL_FILIPPO ed EMAIL_SIMONA con i vostri indirizzi Gmail
+// (in minuscolo) direttamente nella console Firebase > Firestore > Regole.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function ammesso() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in ['EMAIL_FILIPPO', 'EMAIL_SIMONA'];
+    }
+
+    match /{document=**} {
+      allow read, write: if ammesso();
+    }
+  }
+}

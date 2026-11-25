@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Spese Viola &amp; Alice</title>
+<meta name="theme-color" content="#6d4fc2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Spese V&amp;A">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root{
+    --viola:#6d4fc2; --viola-scuro:#54399f; --viola-chiaro:#ece6fb;
+    --oro:#ffc857; --sfondo:#f6f4fb; --carta:#fff; --testo:#221d33;
+    --grigio:#6f6a80; --linea:#e4e0ee; --verde:#1f8a5b; --rosso:#c2410c;
+    --ombra:0 2px 10px rgba(40,25,90,.08);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--sfondo);color:var(--testo);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-tap-highlight-color:transparent}
+  button,input,select,textarea{font:inherit;color:inherit}
+  .nascosto{display:none!important}
+  header{background:var(--viola);color:#fff;padding:calc(14px + env(safe-area-inset-top)) 18px 54px;
+    position:relative}
+  header h1{margin:0;font-size:24px;letter-spacing:.2px}
+  header .utente{display:flex;align-items:center;gap:8px;font-size:13px;opacity:.9;margin-top:4px}
+  header .esci{position:absolute;right:14px;top:calc(12px + env(safe-area-inset-top));
+    background:rgba(255,255,255,.16);border:0;color:#fff;border-radius:20px;padding:6px 12px;font-size:13px}
+  main{position:relative;max-width:640px;margin:-40px auto 0;padding:0 14px calc(110px + env(safe-area-inset-bottom))}
+  .card{background:var(--carta);border-radius:18px;box-shadow:var(--ombra);padding:16px}
+  .saldo .etichetta{font-size:13px;color:var(--grigio)}
+  .saldo .frase{font-size:20px;font-weight:700;margin:4px 0 2px}
+  .saldo .frase.pari{color:var(--verde)}
+  .saldo .sotto{font-size:13px;color:var(--grigio)}
+  .riga-btn{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .btn{border:0;border-radius:12px;padding:10px 14px;font-weight:600;cursor:pointer}
+  .btn.primario{background:var(--viola);color:#fff}
+  .btn.secondario{background:var(--viola-chiaro);color:var(--viola-scuro)}
+  .btn.pericolo{background:#fde8e1;color:var(--rosso)}
+  .btn.pieno{width:100%}
+  .btn:disabled{opacity:.5}
+  .mese{display:flex;align-items:center;justify-content:space-between;margin:18px 2px 8px}
+  .mese button{background:var(--carta);border:1px solid var(--linea);border-radius:10px;width:38px;height:36px;font-size:18px}
+  .mese .nome{font-weight:700;font-size:17px;text-transform:capitalize;text-align:center}
+  .mese .tot{font-size:12px;color:var(--grigio);font-weight:400;text-transform:none}
+  .filtri{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:none}
+  .filtri::-webkit-scrollbar{display:none}
+  .chip{border:1px solid var(--linea);background:var(--carta);border-radius:20px;padding:6px 12px;font-size:13px;white-space:nowrap}
+  .chip.attivo{background:var(--viola);border-color:var(--viola);color:#fff}
+  .lista{display:flex;flex-direction:column;gap:8px}
+  .giorno{font-size:12px;color:var(--grigio);margin:10px 4px 0;text-transform:capitalize}
+  .mov{display:flex;align-items:center;gap:12px;background:var(--carta);border-radius:14px;padding:12px;
+    box-shadow:var(--ombra);border:0;text-align:left;width:100%;cursor:pointer}
+  .mov .ico{width:40px;height:40px;border-radius:12px;background:var(--viola-chiaro);display:flex;
+    align-items:center;justify-content:center;font-size:20px;flex:none}
+  .mov.pag .ico{background:#dff3e9}
+  .mov .centro{flex:1;min-width:0}
+  .mov .titolo{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mov .dett{font-size:12px;color:var(--grigio);margin-top:2px}
+  .mov .dx{text-align:right;flex:none}
+  .mov .imp{font-weight:700}
+  .mov .quota{font-size:12px;margin-top:2px}
+  .su{color:var(--verde)} .giu{color:var(--rosso)}
+  .vuoto{text-align:center;color:var(--grigio);padding:34px 10px}
+  .fab{position:fixed;right:18px;bottom:calc(20px + env(safe-area-inset-bottom));background:var(--viola);color:#fff;
+    border:0;border-radius:28px;padding:15px 22px;font-weight:700;font-size:16px;box-shadow:0 6px 18px rgba(109,79,194,.4)}
+  .avviso{background:#fff6dd;border:1px solid #f3dc9b;color:#6b5210;border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:10px}
+  /* finestre */
+  .velo{position:fixed;inset:0;background:rgba(25,18,45,.45);display:flex;align-items:flex-end;justify-content:center;z-index:20}
+  .foglio{background:var(--carta);width:100%;max-width:640px;max-height:92vh;overflow:auto;border-radius:20px 20px 0 0;
+    padding:18px 16px calc(18px + env(safe-area-inset-bottom))}
+  @media(min-width:700px){.velo{align-items:center}.foglio{border-radius:20px}}
+  .foglio h2{margin:0 0 12px;font-size:19px}
+  label{display:block;font-size:13px;color:var(--grigio);margin:12px 0 5px}
+  input,select,textarea{width:100%;border:1px solid var(--linea);border-radius:12px;padding:11px 12px;background:#fff;font-size:16px}
+  textarea{min-height:64px;resize:vertical}
+  .due{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .segmenti{display:flex;background:var(--sfondo);border-radius:12px;padding:3px;gap:3px}
+  .segmenti button{flex:1;border:0;background:transparent;border-radius:10px;padding:9px 6px;font-weight:600;color:var(--grigio)}
+  .segmenti button.on{background:var(--carta);color:var(--viola-scuro);box-shadow:var(--ombra)}
+  .divisione{display:flex;align-items:center;gap:10px}
+  .divisione input[type=range]{flex:1;padding:0;border:0}
+  .divisione .val{font-size:13px;min-width:150px;text-align:right}
+  .foto-anteprima{margin-top:8px;max-width:100%;border-radius:12px;display:block}
+  .azioni{display:flex;gap:8px;margin-top:18px}
+  .azioni .btn{flex:1}
+  .info{font-size:13px;color:var(--grigio)}
+  /* accesso */
+  .accesso{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .accesso .card{max-width:380px;width:100%;text-align:center;padding:28px 22px}
+  .accesso img{width:84px;height:84px;border-radius:20px}
+  .accesso h1{font-size:22px;margin:14px 0 6px}
+  .btn-google{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;margin-top:18px;
+    background:#fff;border:1px solid var(--linea);border-radius:12px;padding:12px;font-weight:600}
+  .toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom));transform:translateX(-50%);
+    background:#221d33;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;z-index:40;max-width:90%}
+</style>
+</head>
+<body>
+
+<!-- Schermata di accesso -->
+<section id="schermo-accesso" class="accesso nascosto">
+  <div class="card">
+    <img src="icon.svg" alt="">
+    <h1>Spese Viola &amp; Alice</h1>
+    <p class="info">Le spese delle bambine, divise tra Filippo e Simona.</p>
+    <button id="btn-google" class="btn-google">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>
+      Accedi con Google
+    </button>
+    <p id="errore-accesso" class="info" style="color:var(--rosso)"></p>
+  </div>
+</section>
+
+<!-- Scelta identità al primo accesso -->
+<section id="schermo-chi" class="accesso nascosto">
+  <div class="card">
+    <img src="icon.svg" alt="">
+    <h1>Chi sei?</h1>
+    <p class="info">Serve una volta sola, per sapere chi paga cosa.</p>
+    <div class="riga-btn" style="flex-direction:column">
+      <button class="btn primario pieno" data-chi="filippo">Sono Filippo</button>
+      <button class="btn primario pieno" data-chi="simona">Sono Simona</button>
+    </div>
+  </div>
+</section>
+
+<!-- App -->
+<div id="app" class="nascosto">
+  <header>
+    <h1>Spese Viola &amp; Alice</h1>
+    <div class="utente" id="utente"></div>
+    <button class="esci" id="btn-esci">Esci</button>
+  </header>
+  <main>
+    <div id="avviso-prova" class="avviso nascosto">
+      <b>Modalità prova.</b> I dati restano solo su questo dispositivo e non arrivano a Simona.
+      Si attiva la sincronizzazione completando la configurazione di Firebase.
+    </div>
+
+    <div class="card saldo">
+      <div class="etichetta">Saldo complessivo</div>
+      <div class="frase" id="saldo-frase">—</div>
+      <div class="sotto" id="saldo-sotto"></div>
+      <div class="riga-btn">
+        <button class="btn secondario" id="btn-pagamento">Registra pagamento</button>
+        <button class="btn secondario" id="btn-pdf">Riepilogo PDF del mese</button>
+      </div>
+    </div>
+
+    <div class="mese">
+      <button id="mese-prec" aria-label="Mese precedente">‹</button>
+      <div class="nome"><span id="mese-nome"></span><div class="tot" id="mese-tot"></div></div>
+      <button id="mese-succ" aria-label="Mese successivo">›</button>
+    </div>
+    <div class="filtri" id="filtri"></div>
+    <div class="lista" id="lista"></div>
+  </main>
+  <button class="fab" id="btn-nuova">＋ Aggiungi spesa</button>
+</div>
+
+<!-- Finestra spesa -->
+<div class="velo nascosto" id="fin-spesa">
+  <form class="foglio" id="form-spesa" autocomplete="off">
+    <h2 id="titolo-spesa">Nuova spesa</h2>
+    <label for="s-desc">Descrizione</label>
+    <input id="s-desc" required maxlength="80" placeholder="Es. Retta danza, visita pediatra…">
+    <div class="due">
+      <div><label for="s-imp">Importo (€)</label>
+        <input id="s-imp" required inputmode="decimal" placeholder="0,00"></div>
+      <div><label for="s-data">Data</label>
+        <input id="s-data" type="date" required></div>
+    </div>
+    <div class="due">
+      <div><label for="s-cat">Categoria</label><select id="s-cat"></select></div>
+      <div><label for="s-per">Per</label>
+        <select id="s-per"><option value="entrambe">Entrambe</option><option value="viola">Viola</option><option value="alice">Alice</option></select></div>
+    </div>
+    <div id="s-cat-altro-box" class="nascosto">
+      <label for="s-cat-altro">Specifica categoria</label>
+      <input id="s-cat-altro" maxlength="40" placeholder="Es. Regali, Parrucchiere…">
+    </div>
+    <label>Pagato da</label>
+    <div class="segmenti" id="s-pagato"><button type="button" data-v="filippo">Filippo</button><button type="button" data-v="simona">Simona</button></div>
+    <label>Divisione</label>
+    <div class="divisione">
+      <input type="range" id="s-quota" min="0" max="100" step="5" value="50">
+      <div class="val" id="s-quota-val"></div>
+    </div>
+    <label for="s-note">Note</label>
+    <textarea id="s-note" maxlength="300" placeholder="Facoltative"></textarea>
+    <label>Foto scontrino</label>
+    <input id="s-foto" type="file" accept="image/*">
+    <img id="s-foto-anteprima" class="foto-anteprima nascosto" alt="Scontrino">
+    <button type="button" id="s-foto-togli" class="btn pericolo nascosto" style="margin-top:8px">Togli foto</button>
+    <p class="info" id="s-autore"></p>
+    <div class="azioni">
+      <button type="button" class="btn pericolo nascosto" id="s-elimina">Elimina</button>
+      <button type="button" class="btn secondario" data-chiudi>Annulla</button>
+      <button type="submit" class="btn primario" id="s-salva">Salva</button>
+    </div>
+  </form>
+</div>
+
+<!-- Finestra pagamento -->
+<div class="velo nascosto" id="fin-pag">
+  <form class="foglio" id="form-pag" autocomplete="off">
+    <h2 id="titolo-pag">Registra pagamento</h2>
+    <p class="info">Quando uno dei due salda l'altro (bonifico, contanti…).</p>
+    <label>Chi paga</label>
+    <div class="segmenti" id="p-da"><button type="button" data-v="filippo">Filippo → Simona</button><button type="button" data-v="simona">Simona → Filippo</button></div>
+    <div class="due">
+      <div><label for="p-imp">Importo (€)</label><input id="p-imp" required inputmode="decimal"></div>
+      <div><label for="p-data">Data</label><input id="p-data" type="date" required></div>
+    </div>
+    <label for="p-note">Note</label>
+    <input id="p-note" maxlength="120" placeholder="Es. bonifico">
+    <p class="info" id="p-autore"></p>
+    <div class="azioni">
+      <button type="button" class="btn pericolo nascosto" id="p-elimina">Elimina</button>
+      <button type="button" class="btn secondario" data-chiudi>Annulla</button>
+      <button type="submit" class="btn primario">Salva</button>
+    </div>
+  </form>
+</div>
+
+<div class="toast nascosto" id="toast"></div>
+
+<script type="module">
+import { firebaseConfig } from './firebase-config.js';
+
+/* ---------- costanti ---------- */
+const NOMI = { filippo: 'Filippo', simona: 'Simona' };
+const ALTRO = (p) => p === 'filippo' ? 'simona' : 'filippo';
+const PER = { entrambe: 'Viola e Alice', viola: 'Viola', alice: 'Alice' };
+// Ordine alfabetico automatico, "Altro" sempre in fondo e compilabile
+const CATEGORIE = Object.fromEntries([
+  ['Abbigliamento','👕'], ['Libri e cancelleria','📚'], ['Mensa','🍽️'], ['Salute','🩺'],
+  ['Scuola','🏫'], ['Sport e attività','🤸'], ['Svago e vacanze','🎡'], ['Trasporti','🚌'],
+].sort((a,b)=>a[0].localeCompare(b[0],'it')));
+const ICONA_ALTRO = '🧾';
+
+/* ---------- utilità ---------- */
+const $ = (s, r=document) => r.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const euro = (cent) => (cent/100).toLocaleString('it-IT', { style:'currency', currency:'EUR' });
+const parseEuro = (s) => {
+  s = String(s).trim().replace(/\s|€/g,'');
+  if (s.includes(',')) s = s.replace(/\./g,'').replace(',', '.');
+  const n = Number(s);
+  return Number.isFinite(n) && n > 0 ? Math.round(n*100) : null;
+};
+const oggiISO = () => { const d = new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
+const dataLunga = (iso) => new Date(iso+'T12:00').toLocaleDateString('it-IT',{weekday:'long', day:'numeric', month:'long'});
+const dataBreve = (iso) => new Date(iso+'T12:00').toLocaleDateString('it-IT',{day:'2-digit', month:'2-digit', year:'numeric'});
+const nomeMese = (ym) => new Date(ym+'-15T12:00').toLocaleDateString('it-IT',{month:'long', year:'numeric'});
+const spostaMese = (ym, d) => { const [y,m] = ym.split('-').map(Number); const t = new Date(y, m-1+d, 1); return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}`; };
+const nuovoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.remove('nascosto'); clearTimeout(toast._t); toast._t = setTimeout(()=>t.classList.add('nascosto'), 2600); }
+const icona = (m) => m.tipo === 'pagamento' ? '💶' : (CATEGORIE[m.categoria] || ICONA_ALTRO);
+
+/* Quanto un movimento sposta il credito di Filippo verso Simona (in centesimi).
+   Positivo = Simona deve a Filippo. */
+function effetto(m){
+  if (m.tipo === 'pagamento') return m.da === 'simona' ? -m.importo : m.importo;
+  const quotaF = Math.round(m.importo * m.quotaFilippo / 100);   // parte a carico di Filippo
+  return m.pagatoDa === 'filippo' ? (m.importo - quotaF) : -quotaF;
+}
+
+/* Riduce una foto a max 1280 px in JPEG, sotto ~700 KB (sta in un documento Firestore). */
+async function comprimiFoto(file){
+  const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = URL.createObjectURL(file); });
+  let lato = 1280, q = 0.72, url;
+  for (let tent = 0; tent < 6; tent++){
+    const k = Math.min(1, lato / Math.max(img.width, img.height));
+    const c = document.createElement('canvas'); c.width = Math.round(img.width*k); c.height = Math.round(img.height*k);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    url = c.toDataURL('image/jpeg', q);
+    if (url.length < 700_000) break;
+    lato *= 0.8; q -= 0.08;
+  }
+  URL.revokeObjectURL(img.src);
+  return url;
+}
+
+/* ---------- archivio: Firebase oppure modalità prova ---------- */
+let db; // oggetto con la stessa interfaccia nei due casi
+
+function archivioLocale(){
+  const K = 'sva_movimenti', KF = 'sva_foto_', KM = 'sva_io';
+  const leggi = () => { try { return JSON.parse(localStorage.getItem(K)) || {}; } catch { return {}; } };
+  const scrivi = (o) => { localStorage.setItem(K, JSON.stringify(o)); avvisa(); };
+  let ascoltatori = [];
+  const avvisa = () => { const v = Object.values(leggi()); ascoltatori.forEach(f => f(v)); };
+  return {
+    prova: true,
+    async utente(){ return { nome: 'Prova', email: '' }; },
+    async chiSono(){ return localStorage.getItem(KM); },
+    async impostaChiSono(p){ localStorage.setItem(KM, p); },
+    async personeOccupate(){ return []; },
+    ascolta(f){ ascoltatori.push(f); f(Object.values(leggi())); },
+    async salva(m){ const o = leggi(); o[m.id] = m; scrivi(o); },
+    async elimina(id){ const o = leggi(); delete o[id]; scrivi(o); localStorage.removeItem(KF+id); },
+    async salvaFoto(id, url){ try { localStorage.setItem(KF+id, url); } catch { throw new Error('Spazio esaurito sul dispositivo'); } },
+    async leggiFoto(id){ return localStorage.getItem(KF+id); },
+    async togliFoto(id){ localStorage.removeItem(KF+id); },
+    async esci(){ localStorage.removeItem(KM); location.reload(); },
+  };
+}
+
+async function archivioFirebase(cfg){
+  const V = '10.12.2', B = `https://www.gstatic.com/firebasejs/${V}/`;
+  const [{ initializeApp }, A, F] = await Promise.all([
+    import(B+'firebase-app.js'), import(B+'firebase-auth.js'), import(B+'firebase-firestore.js')]);
+  const app = initializeApp(cfg);
+  const auth = A.getAuth(app);
+  const fs = F.initializeFirestore(app, { localCache: F.persistentLocalCache({ tabManager: F.persistentMultipleTabManager() }) });
+  const prov = new A.GoogleAuthProvider(); prov.setCustomParameters({ prompt: 'select_account' });
+
+  await A.getRedirectResult(auth).catch(e => mostraErroreAccesso(e));
+  const user = await new Promise(ok => { const u = A.onAuthStateChanged(auth, x => { u(); ok(x); }); });
+
+  if (!user){
+    mostra('schermo-accesso');
+    $('#btn-google').onclick = async () => {
+      try { await A.signInWithPopup(auth, prov); location.reload(); }
+      catch (e){
+        if (['auth/popup-blocked','auth/operation-not-supported-in-this-environment','auth/cancelled-popup-request'].includes(e.code))
+          await A.signInWithRedirect(auth, prov);
+        else mostraErroreAccesso(e);
+      }
+    };
+    return null;
+  }
+
+  return {
+    prova: false,
+    async utente(){ return { nome: user.displayName || user.email, email: user.email }; },
+    async chiSono(){
+      try { const d = await F.getDoc(F.doc(fs, 'membri', user.uid)); return d.exists() ? d.data().persona : null; }
+      catch (e){ if (e.code === 'permission-denied') throw new Error('nonammesso'); throw e; }
+    },
+    async impostaChiSono(p){ await F.setDoc(F.doc(fs, 'membri', user.uid), { persona: p, email: user.email, quando: Date.now() }); },
+    async personeOccupate(){ const s = await F.getDocs(F.collection(fs, 'membri')); return s.docs.filter(d => d.id !== user.uid).map(d => d.data().persona); },
+    ascolta(f){ F.onSnapshot(F.collection(fs, 'movimenti'), s => f(s.docs.map(d => d.data())), e => toast('Errore di sincronizzazione: ' + e.code)); },
+    async salva(m){ await F.setDoc(F.doc(fs, 'movimenti', m.id), m); },
+    async elimina(id){ await F.deleteDoc(F.doc(fs, 'movimenti', id)); await F.deleteDoc(F.doc(fs, 'foto', id)).catch(()=>{}); },
+    async salvaFoto(id, url){ await F.setDoc(F.doc(fs, 'foto', id), { dati: url }); },
+    async leggiFoto(id){ const d = await F.getDoc(F.doc(fs, 'foto', id)); return d.exists() ? d.data().dati : null; },
+    async togliFoto(id){ await F.deleteDoc(F.doc(fs, 'foto', id)); },
+    async esci(){ await A.signOut(auth); location.reload(); },
+  };
+}
+
+function mostra(id){
+  ['schermo-accesso','schermo-chi','app'].forEach(x => $('#'+x).classList.toggle('nascosto', x !== id));
+}
+function mostraErroreAccesso(e){
+  mostra('schermo-accesso');
+  $('#errore-accesso').textContent = e.message === 'nonammesso'
+    ? 'Questo account Google non è abilitato. Usa l\'indirizzo che hai comunicato a Filippo.'
+    : 'Accesso non riuscito (' + (e.code || e.message) + ').';
+}
+
+/* ---------- stato e disegno ---------- */
+let io = null;              // 'filippo' | 'simona'
+let movimenti = [];
+let meseCorrente = oggiISO().slice(0,7);
+let filtro = 'tutte';
+
+function ordinati(lista){ return [...lista].sort((a,b) => b.data.localeCompare(a.data) || b.creatoIl - a.creatoIl); }
+
+function disegna(){
+  // saldo
+  const credito = movimenti.reduce((s,m) => s + effetto(m), 0);
+  const fr = $('#saldo-frase'), sotto = $('#saldo-sotto');
+  if (credito === 0){ fr.textContent = 'Siete pari'; fr.className = 'frase pari'; sotto.textContent = 'Nessuno deve niente all\'altro.'; }
+  else {
+    const deb = credito > 0 ? 'simona' : 'filippo';
+    fr.className = 'frase ' + (deb === io ? 'giu' : 'su');
+    fr.textContent = `${NOMI[deb]} deve ${euro(Math.abs(credito))} a ${NOMI[ALTRO(deb)]}`;
+    sotto.textContent = deb === io ? 'Tocca a te saldare.' : 'Ti spetta questo importo.';
+  }
+
+  // mese
+  $('#mese-nome').textContent = nomeMese(meseCorrente);
+  const delMese = ordinati(movimenti.filter(m => m.data.startsWith(meseCorrente)));
+  const speseMese = delMese.filter(m => m.tipo === 'spesa');
+  const totale = speseMese.reduce((s,m) => s + m.importo, 0);
+  $('#mese-tot').textContent = speseMese.length ? `${speseMese.length} spese · ${euro(totale)}` : 'nessuna spesa';
+
+  // filtri categoria (solo quelle presenti nel mese)
+  const cats = [...new Set(speseMese.map(m => m.categoria))].sort((a,b)=>a.localeCompare(b,'it'));
+  if (filtro !== 'tutte' && filtro !== 'pagamenti' && !cats.includes(filtro)) filtro = 'tutte';
+  const chip = (v, t) => `<button class="chip ${filtro===v?'attivo':''}" data-f="${esc(v)}">${t}</button>`;
+  $('#filtri').innerHTML = chip('tutte','Tutte') + cats.map(c => chip(c, `${CATEGORIE[c]||ICONA_ALTRO} ${esc(c)}`)).join('')
+    + (delMese.some(m=>m.tipo==='pagamento') ? chip('pagamenti','💶 Pagamenti') : '');
+
+  const vis = delMese.filter(m => filtro === 'tutte' ? true : filtro === 'pagamenti' ? m.tipo === 'pagamento' : (m.tipo === 'spesa' && m.categoria === filtro));
+  if (!vis.length){ $('#lista').innerHTML = `<div class="vuoto">Nessun movimento in questo mese.<br>Tocca “Aggiungi spesa” per iniziare.</div>`; return; }
+
+  let html = '', giorno = '';
+  for (const m of vis){
+    if (m.data !== giorno){ giorno = m.data; html += `<div class="giorno">${dataLunga(giorno)}</div>`; }
+    const e = effetto(m), mio = io === 'filippo' ? e : -e; // >0 = a mio favore
+    if (m.tipo === 'pagamento'){
+      html += `<button class="mov pag" data-id="${m.id}"><div class="ico">💶</div><div class="centro">
+        <div class="titolo">${NOMI[m.da]} ha pagato ${NOMI[ALTRO(m.da)]}</div>
+        <div class="dett">${esc(m.note || 'Pagamento')}</div></div>
+        <div class="dx"><div class="imp">${euro(m.importo)}</div></div></button>`;
+    } else {
+      const pq = m.quotaFilippo === 50 ? '50/50' : `F ${m.quotaFilippo}% · S ${100-m.quotaFilippo}%`;
+      html += `<button class="mov" data-id="${m.id}"><div class="ico">${icona(m)}</div><div class="centro">
+        <div class="titolo">${esc(m.descrizione)}${m.foto ? ' 📎' : ''}</div>
+        <div class="dett">Pagata da ${NOMI[m.pagatoDa]} · ${PER[m.per]||''} · ${pq}</div></div>
+        <div class="dx"><div class="imp">${euro(m.importo)}</div>
+        <div class="quota ${mio>0?'su':'giu'}">${mio>0?'ti spettano ':'devi '}${euro(Math.abs(mio))}</div></div></button>`;
+    }
+  }
+  $('#lista').innerHTML = html;
+}
+
+/* ---------- finestra spesa ---------- */
+let spesaInModifica = null, fotoNuova = undefined; // undefined = invariata, null = tolta, string = nuova
+const segm = (box, v) => box.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+const segmVal = (box) => box.querySelector('button.on')?.dataset.v;
+
+function aggiornaQuota(){
+  const q = +$('#s-quota').value;
+  $('#s-quota-val').textContent = `Filippo ${q}% · Simona ${100-q}%`;
+}
+function apriSpesa(m){
+  spesaInModifica = m || null; fotoNuova = undefined;
+  $('#titolo-spesa').textContent = m ? 'Modifica spesa' : 'Nuova spesa';
+  $('#s-desc').value = m?.descrizione || '';
+  $('#s-imp').value = m ? (m.importo/100).toFixed(2).replace('.', ',') : '';
+  $('#s-data').value = m?.data || (meseCorrente === oggiISO().slice(0,7) ? oggiISO() : meseCorrente + '-01');
+  const sel = $('#s-cat');
+  sel.innerHTML = '<option value="">— scegli —</option>' + Object.keys(CATEGORIE).map(c => `<option>${esc(c)}</option>`).join('') + '<option value="__altro">Altro…</option>';
+  if (m){ if (CATEGORIE[m.categoria]) sel.value = m.categoria; else { sel.value = '__altro'; $('#s-cat-altro').value = m.categoria; } }
+  else { sel.value = ''; $('#s-cat-altro').value = ''; }
+  $('#s-cat-altro-box').classList.toggle('nascosto', sel.value !== '__altro');
+  $('#s-per').value = m?.per || 'entrambe';
+  segm($('#s-pagato'), m?.pagatoDa || io);
+  $('#s-quota').value = m?.quotaFilippo ?? 50; aggiornaQuota();
+  $('#s-note').value = m?.note || '';
+  $('#s-foto').value = '';
+  const ant = $('#s-foto-anteprima'); ant.classList.add('nascosto'); ant.removeAttribute('src');
+  $('#s-foto-togli').classList.add('nascosto');
+  if (m?.foto){ db.leggiFoto(m.id).then(u => { if (u && spesaInModifica?.id === m.id){ ant.src = u; ant.classList.remove('nascosto'); $('#s-foto-togli').classList.remove('nascosto'); } }); }
+  $('#s-elimina').classList.toggle('nascosto', !m);
+  $('#s-autore').textContent = m ? `Inserita da ${NOMI[m.creatoDa] || '—'}${m.modificatoDa ? ` · ultima modifica di ${NOMI[m.modificatoDa]}` : ''}` : '';
+  $('#fin-spesa').classList.remove('nascosto');
+  if (!m) setTimeout(() => $('#s-desc').focus(), 50);
+}
+$('#s-cat').onchange = () => { $('#s-cat-altro-box').classList.toggle('nascosto', $('#s-cat').value !== '__altro'); if ($('#s-cat').value === '__altro') $('#s-cat-altro').focus(); };
+$('#s-quota').oninput = aggiornaQuota;
+$('#s-pagato').onclick = (e) => { if (e.target.dataset.v) segm($('#s-pagato'), e.target.dataset.v); };
+$('#s-foto').onchange = async () => {
+  const f = $('#s-foto').files[0]; if (!f) return;
+  try { fotoNuova = await comprimiFoto(f); const a = $('#s-foto-anteprima'); a.src = fotoNuova; a.classList.remove('nascosto'); $('#s-foto-togli').classList.remove('nascosto'); }
+  catch { toast('Non riesco a leggere questa immagine'); }
+};
+$('#s-foto-togli').onclick = () => { fotoNuova = null; $('#s-foto').value = ''; $('#s-foto-anteprima').classList.add('nascosto'); $('#s-foto-togli').classList.add('nascosto'); };
+$('#s-foto-anteprima').onclick = () => { const w = window.open(); if (w) w.document.write(`<img src="${$('#s-foto-anteprima').src}" style="max-width:100%">`); };
+
+$('#form-spesa').onsubmit = async (e) => {
+  e.preventDefault();
+  const importo = parseEuro($('#s-imp').value);
+  if (!importo){ toast('Importo non valido'); $('#s-imp').focus(); return; }
+  let categoria = $('#s-cat').value;
+  if (!categoria){ toast('Scegli una categoria'); return; }
+  if (categoria === '__altro'){ categoria = $('#s-cat-altro').value.trim(); if (!categoria){ toast('Scrivi la categoria'); $('#s-cat-altro').focus(); return; } }
+  const vecchia = spesaInModifica;
+  const m = {
+    id: vecchia?.id || nuovoId(), tipo: 'spesa',
+    descrizione: $('#s-desc').value.trim(), importo, data: $('#s-data').value,
+    categoria, per: $('#s-per').value, pagatoDa: segmVal($('#s-pagato')),
+    quotaFilippo: +$('#s-quota').value, note: $('#s-note').value.trim(),
+    foto: fotoNuova === undefined ? !!vecchia?.foto : !!fotoNuova,
+    creatoDa: vecchia?.creatoDa || io, creatoIl: vecchia?.creatoIl || Date.now(),
+    ...(vecchia ? { modificatoDa: io, modificatoIl: Date.now() } : {}),
+  };
+  $('#s-salva').disabled = true;
+  try {
+    if (typeof fotoNuova === 'string') await db.salvaFoto(m.id, fotoNuova);
+    if (fotoNuova === null && vecchia?.foto) await db.togliFoto(m.id);
+    await db.salva(m);
+    chiudi(); meseCorrente = m.data.slice(0,7); disegna();
+    toast(vecchia ? 'Spesa aggiornata' : 'Spesa aggiunta');
+  } catch (err){ toast('Errore nel salvataggio: ' + (err.message || err)); }
+  finally { $('#s-salva').disabled = false; }
+};
+$('#s-elimina').onclick = async () => {
+  if (!spesaInModifica || !confirm(`Eliminare “${spesaInModifica.descrizione}”? L'operazione non si può annullare.`)) return;
+  await db.elimina(spesaInModifica.id); chiudi(); toast('Spesa eliminata');
+};
+
+/* ---------- finestra pagamento ---------- */
+let pagInModifica = null;
+function apriPagamento(m){
+  pagInModifica = m || null;
+  const credito = movimenti.reduce((s,x) => s + effetto(x), 0);
+  const debitore = credito > 0 ? 'simona' : credito < 0 ? 'filippo' : io;
+  $('#titolo-pag').textContent = m ? 'Modifica pagamento' : 'Registra pagamento';
+  segm($('#p-da'), m?.da || debitore);
+  $('#p-imp').value = m ? (m.importo/100).toFixed(2).replace('.', ',') : (credito ? (Math.abs(credito)/100).toFixed(2).replace('.', ',') : '');
+  $('#p-data').value = m?.data || oggiISO();
+  $('#p-note').value = m?.note || '';
+  $('#p-elimina').classList.toggle('nascosto', !m);
+  $('#p-autore').textContent = m ? `Registrato da ${NOMI[m.creatoDa] || '—'}` : (credito ? 'Importo proposto: il saldo attuale, per azzerare il conto.' : '');
+  $('#fin-pag').classList.remove('nascosto');
+}
+$('#p-da').onclick = (e) => { if (e.target.dataset.v) segm($('#p-da'), e.target.dataset.v); };
+$('#form-pag').onsubmit = async (e) => {
+  e.preventDefault();
+  const importo = parseEuro($('#p-imp').value);
+  if (!importo){ toast('Importo non valido'); return; }
+  const v = pagInModifica, da = segmVal($('#p-da'));
+  const m = { id: v?.id || nuovoId(), tipo: 'pagamento', da, a: ALTRO(da), importo, data: $('#p-data').value,
+    note: $('#p-note').value.trim(), creatoDa: v?.creatoDa || io, creatoIl: v?.creatoIl || Date.now(),
+    ...(v ? { modificatoDa: io, modificatoIl: Date.now() } : {}) };
+  try { await db.salva(m); chiudi(); meseCorrente = m.data.slice(0,7); disegna(); toast('Pagamento registrato'); }
+  catch (err){ toast('Errore: ' + (err.message || err)); }
+};
+$('#p-elimina').onclick = async () => {
+  if (!pagInModifica || !confirm('Eliminare questo pagamento? L\'operazione non si può annullare.')) return;
+  await db.elimina(pagInModifica.id); chiudi(); toast('Pagamento eliminato');
+};
+
+function chiudi(){ document.querySelectorAll('.velo').forEach(v => v.classList.add('nascosto')); }
+document.querySelectorAll('[data-chiudi]').forEach(b => b.onclick = chiudi);
+document.querySelectorAll('.velo').forEach(v => v.addEventListener('click', e => { if (e.target === v) chiudi(); }));
+
+/* ---------- PDF mensile ---------- */
+function caricaScript(src){ return new Promise((ok, ko) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = ko; document.head.appendChild(s); }); }
+async function creaPDF(){
+  if (!window.jspdf){
+    try {
+      await caricaScript('vendor/jspdf.umd.min.js');
+      await caricaScript('vendor/jspdf.plugin.autotable.min.js');
+    } catch { toast('Non riesco a caricare il generatore PDF'); return; }
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const ym = meseCorrente, titoloMese = nomeMese(ym);
+  const delMese = [...movimenti.filter(m => m.data.startsWith(ym))].sort((a,b) => a.data.localeCompare(b.data) || a.creatoIl - b.creatoIl);
+  const spese = delMese.filter(m => m.tipo === 'spesa'), pag = delMese.filter(m => m.tipo === 'pagamento');
+  const fineMese = spostaMese(ym, 1) + '-01';
+  const saldoPrima = movimenti.filter(m => m.data < ym + '-01').reduce((s,m) => s + effetto(m), 0);
+  const saldoDopo = movimenti.filter(m => m.data < fineMese).reduce((s,m) => s + effetto(m), 0);
+  const frase = (c) => c === 0 ? 'pari' : `${NOMI[c>0?'simona':'filippo']} deve ${euro(Math.abs(c))} a ${NOMI[c>0?'filippo':'simona']}`;
+  const viola = [109,79,194];
+
+  doc.setFillColor(...viola); doc.rect(0, 0, 210, 26, 'F');
+  doc.setTextColor(255); doc.setFont('helvetica','bold'); doc.setFontSize(17);
+  doc.text('Spese Viola & Alice', 14, 12);
+  doc.setFont('helvetica','normal'); doc.setFontSize(11);
+  doc.text('Riepilogo ' + titoloMese, 14, 20);
+  doc.setFontSize(8); doc.text('Creato il ' + new Date().toLocaleDateString('it-IT') + ' da ' + NOMI[io], 196, 20, { align: 'right' });
+  doc.setTextColor(34,29,51);
+
+  const tot = spese.reduce((s,m)=>s+m.importo,0);
+  const pagF = spese.filter(m=>m.pagatoDa==='filippo').reduce((s,m)=>s+m.importo,0);
+  const quotaF = spese.reduce((s,m)=>s+Math.round(m.importo*m.quotaFilippo/100),0);
+  doc.autoTable({
+    startY: 32, theme: 'plain', styles: { fontSize: 10, cellPadding: 1.4 },
+    columnStyles: { 0: { cellWidth: 70, textColor: [111,106,128] }, 1: { fontStyle: 'bold' } },
+    body: [
+      ['Totale spese del mese', euro(tot)],
+      ['Pagato da Filippo / a suo carico', `${euro(pagF)} / ${euro(quotaF)}`],
+      ['Pagato da Simona / a suo carico', `${euro(tot-pagF)} / ${euro(tot-quotaF)}`],
+      ['Saldo a inizio mese', frase(saldoPrima)],
+      ['Saldo a fine mese', frase(saldoDopo)],
+    ],
+  });
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(12);
+  doc.text('Spese', 14, doc.lastAutoTable.finalY + 9);
+  doc.autoTable({
+    startY: doc.lastAutoTable.finalY + 12,
+    head: [['Data','Descrizione','Categoria','Per','Pagata da','Importo','Quota F','Quota S']],
+    body: spese.length ? spese.map(m => { const qF = Math.round(m.importo*m.quotaFilippo/100); return [
+      dataBreve(m.data), m.descrizione + (m.note ? '\n' + m.note : ''), m.categoria, PER[m.per]||'', NOMI[m.pagatoDa], euro(m.importo), euro(qF), euro(m.importo-qF)]; })
+      : [[{ content: 'Nessuna spesa registrata nel mese', colSpan: 8, styles: { halign: 'center', textColor: [111,106,128] } }]],
+    foot: spese.length ? [['', 'Totale', '', '', '', euro(tot), euro(quotaF), euro(tot-quotaF)]] : undefined,
+    styles: { fontSize: 8.5, cellPadding: 2 }, headStyles: { fillColor: viola }, footStyles: { fillColor: [236,230,251], textColor: [34,29,51] },
+    columnStyles: { 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' } },
+    showFoot: 'lastPage',
+  });
+
+  if (pag.length){
+    doc.setFont('helvetica','bold'); doc.setFontSize(12);
+    doc.text('Pagamenti tra genitori', 14, doc.lastAutoTable.finalY + 9);
+    doc.autoTable({
+      startY: doc.lastAutoTable.finalY + 12,
+      head: [['Data','Da','A','Note','Importo']],
+      body: pag.map(m => [dataBreve(m.data), NOMI[m.da], NOMI[m.a], m.note || '', euro(m.importo)]),
+      styles: { fontSize: 8.5, cellPadding: 2 }, headStyles: { fillColor: [31,138,91] }, columnStyles: { 4: { halign: 'right' } },
+    });
+  }
+
+  const n = doc.getNumberOfPages();
+  for (let i = 1; i <= n; i++){ doc.setPage(i); doc.setFontSize(8); doc.setTextColor(140); doc.text(`Pagina ${i} di ${n}`, 196, 290, { align: 'right' }); }
+  doc.save(`Spese Viola e Alice - ${ym}.pdf`);
+}
+
+/* ---------- eventi generali ---------- */
+$('#btn-nuova').onclick = () => apriSpesa();
+$('#btn-pagamento').onclick = () => apriPagamento();
+$('#btn-pdf').onclick = creaPDF;
+$('#mese-prec').onclick = () => { meseCorrente = spostaMese(meseCorrente, -1); filtro = 'tutte'; disegna(); };
+$('#mese-succ').onclick = () => { meseCorrente = spostaMese(meseCorrente, 1); filtro = 'tutte'; disegna(); };
+$('#filtri').onclick = (e) => { const b = e.target.closest('[data-f]'); if (b){ filtro = b.dataset.f; disegna(); } };
+$('#lista').onclick = (e) => { const b = e.target.closest('[data-id]'); if (!b) return; const m = movimenti.find(x => x.id === b.dataset.id); if (m) (m.tipo === 'pagamento' ? apriPagamento : apriSpesa)(m); };
+$('#btn-esci').onclick = () => db.esci();
+
+/* ---------- avvio ---------- */
+(async function avvio(){
+  try {
+    db = firebaseConfig ? await archivioFirebase(firebaseConfig) : archivioLocale();
+    if (!db) return; // in attesa dell'accesso
+    io = await db.chiSono();
+    if (!io){
+      const occupate = await db.personeOccupate();
+      mostra('schermo-chi');
+      document.querySelectorAll('[data-chi]').forEach(b => {
+        b.disabled = occupate.includes(b.dataset.chi);
+        b.onclick = async () => { await db.impostaChiSono(b.dataset.chi); location.reload(); };
+      });
+      return;
+    }
+    const u = await db.utente();
+    $('#utente').textContent = db.prova ? `${NOMI[io]} · modalità prova` : `${NOMI[io]} · ${u.email}`;
+    $('#avviso-prova').classList.toggle('nascosto', !db.prova);
+    mostra('app');
+    db.ascolta(lista => { movimenti = lista; disegna(); });
+  } catch (e){ mostraErroreAccesso(e); }
+})();
+</script>
+</body>
+</html>
