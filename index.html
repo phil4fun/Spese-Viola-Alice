@@ -303,12 +303,14 @@
     </div>
     <label for="s-note">Note</label>
     <textarea id="s-note" maxlength="300" placeholder="Facoltative"></textarea>
+    </fieldset>
+    <!-- allegato fuori dal fieldset: chi controlla può aprirlo anche se non può modificarlo -->
     <label>Scontrino o fattura (foto o PDF)</label>
     <input id="s-foto" type="file" accept="image/*,application/pdf">
+    <p class="info nascosto" id="s-foto-nessuno">Nessun allegato.</p>
     <img id="s-foto-anteprima" class="foto-anteprima nascosto" alt="Allegato">
     <button type="button" id="s-pdf-apri" class="btn secondario nascosto" style="margin-top:8px">📄 Apri PDF</button>
     <button type="button" id="s-foto-togli" class="btn pericolo nascosto" style="margin-top:8px">Togli allegato</button>
-    </fieldset>
     <p class="info" id="s-autore"></p>
     <div id="s-confronto" class="confronto nascosto">
       <label style="margin-top:8px">Confronto</label>
@@ -346,12 +348,14 @@
     </div>
     <label for="p-note">Note</label>
     <input id="p-note" maxlength="120" placeholder="Es. bonifico">
+    </fieldset>
+    <!-- allegato fuori dal fieldset: chi controlla può aprirlo anche se non può modificarlo -->
     <label>Contabile o ricevuta (foto o PDF)</label>
     <input id="p-foto" type="file" accept="image/*,application/pdf">
+    <p class="info nascosto" id="p-foto-nessuno">Nessun allegato.</p>
     <img id="p-foto-anteprima" class="foto-anteprima nascosto" alt="Allegato">
     <button type="button" id="p-pdf-apri" class="btn secondario nascosto" style="margin-top:8px">📄 Apri PDF</button>
     <button type="button" id="p-foto-togli" class="btn pericolo nascosto" style="margin-top:8px">Togli allegato</button>
-    </fieldset>
     <p class="info" id="p-autore"></p>
     <div class="azioni">
       <button type="button" class="btn pericolo nascosto" id="p-elimina">Elimina</button>
@@ -755,7 +759,10 @@ function mostraAllegato(x, url, modificabile = true){
   $(`#${x}-foto-togli`).classList.toggle('nascosto', !url || !modificabile);
 }
 function azzeraAllegato(x, m, modificabile){
-  allegati[x].nuovo = undefined; $(`#${x}-foto`).value = ''; mostraAllegato(x, null);
+  allegati[x].nuovo = undefined; $(`#${x}-foto`).value = ''; mostraAllegato(x, null, modificabile);
+  $(`#${x}-foto`).classList.toggle('nascosto', !modificabile);
+  $(`#${x}-foto`).disabled = !modificabile;
+  $(`#${x}-foto-nessuno`).classList.toggle('nascosto', modificabile || !!m?.foto);
   if (m?.foto) db.leggiFoto(m.id).then(u => {
     const aperto = x === 's' ? spesaInModifica : pagInModifica;
     if (u && aperto?.id === m.id && allegati[x].nuovo === undefined) mostraAllegato(x, u, modificabile);
