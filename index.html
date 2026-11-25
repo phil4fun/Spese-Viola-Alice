@@ -85,6 +85,13 @@
   .divisione{display:flex;align-items:center;gap:10px}
   .divisione input[type=range]{flex:1;padding:0;border:0}
   .divisione .val{font-size:13px;min-width:150px;text-align:right}
+  .segmenti button{font-size:14px}
+  .link{background:none;border:0;color:var(--viola-scuro);text-decoration:underline;padding:8px 0 0;font-size:14px;cursor:pointer}
+  .voce{display:grid;grid-template-columns:1fr 1.3fr auto;gap:6px;background:var(--sfondo);border-radius:12px;padding:8px;margin-bottom:6px}
+  .voce .v-desc{grid-column:1/-1}
+  .voce input,.voce select{padding:9px 10px}
+  .voce .v-x{border:0;background:#fde8e1;color:var(--rosso);border-radius:10px;width:40px;font-size:16px}
+  input[readonly]{background:var(--sfondo)}
   .foto-anteprima{margin-top:8px;max-width:100%;border-radius:12px;display:block}
   .azioni{display:flex;gap:8px;margin-top:18px}
   .azioni .btn{flex:1}
@@ -187,10 +194,24 @@
     <label>Pagato da</label>
     <div class="segmenti" id="s-pagato"><button type="button" data-v="filippo">Filippo</button><button type="button" data-v="simona">Simona</button></div>
     <label>Divisione</label>
-    <div class="divisione">
-      <input type="range" id="s-quota" min="0" max="100" step="5" value="50">
-      <div class="val" id="s-quota-val"></div>
+    <div id="s-div-semplice">
+      <div class="segmenti" id="s-div">
+        <button type="button" data-v="50">Metà</button>
+        <button type="button" data-v="0">Tutta a Simona</button>
+        <button type="button" data-v="100">Tutta a Filippo</button>
+        <button type="button" data-v="x">Altro</button>
+      </div>
+      <div class="divisione nascosto" id="s-div-altro" style="margin-top:8px">
+        <input type="range" id="s-quota" min="0" max="100" step="5" value="50">
+        <div class="val" id="s-quota-val"></div>
+      </div>
     </div>
+    <div id="s-voci-box" class="nascosto">
+      <p class="info" style="margin:0 0 6px">Una riga per ogni voce dello scontrino. Il totale si calcola da solo.</p>
+      <div id="s-voci"></div>
+      <button type="button" class="btn secondario" id="s-voce-add" style="margin-top:6px">＋ Aggiungi voce</button>
+    </div>
+    <button type="button" class="link" id="s-voci-toggle">Scontrino con voci da dividere in modo diverso</button>
     <label for="s-note">Note</label>
     <textarea id="s-note" maxlength="300" placeholder="Facoltative"></textarea>
     <label>Foto scontrino</label>
@@ -265,10 +286,20 @@ const icona = (m) => m.tipo === 'pagamento' ? '💶' : (CATEGORIE[m.categoria] |
 
 /* Quanto un movimento sposta il credito di Filippo verso Simona (in centesimi).
    Positivo = Simona deve a Filippo. */
+/* Parte della spesa a carico di Filippo, in centesimi (voce per voce se lo scontrino ha voci). */
+function quotaFCent(m){
+  if (Array.isArray(m.voci) && m.voci.length) return m.voci.reduce((s,v) => s + Math.round(v.importo * v.quotaFilippo / 100), 0);
+  return Math.round(m.importo * m.quotaFilippo / 100);
+}
 function effetto(m){
   if (m.tipo === 'pagamento') return m.da === 'simona' ? -m.importo : m.importo;
-  const quotaF = Math.round(m.importo * m.quotaFilippo / 100);   // parte a carico di Filippo
+  const quotaF = quotaFCent(m);
   return m.pagatoDa === 'filippo' ? (m.importo - quotaF) : -quotaF;
+}
+const nomeDivisione = (q) => q === 50 ? 'metà' : q === 0 ? 'tutta a Simona' : q === 100 ? 'tutta a Filippo' : `F ${q}% · S ${100-q}%`;
+function testoDivisione(m){
+  if (Array.isArray(m.voci) && m.voci.length) return `${m.voci.length} voci`;
+  return nomeDivisione(m.quotaFilippo);
 }
 
 /* Riduce una foto a max 1280 px in JPEG, sotto ~700 KB (sta in un documento Firestore). */
@@ -413,7 +444,7 @@ function disegna(){
         <div class="dett">${esc(m.note || 'Pagamento')}</div></div>
         <div class="dx"><div class="imp">${euro(m.importo)}</div></div></button>`;
     } else {
-      const pq = m.quotaFilippo === 50 ? '50/50' : `F ${m.quotaFilippo}% · S ${100-m.quotaFilippo}%`;
+      const pq = testoDivisione(m);
       html += `<button class="mov" data-id="${m.id}"><div class="ico">${icona(m)}</div><div class="centro">
         <div class="titolo">${esc(m.descrizione)}${m.foto ? ' 📎' : ''}</div>
         <div class="dett">Pagata da ${NOMI[m.pagatoDa]} · ${PER[m.per]||''} · ${pq}</div></div>
@@ -433,6 +464,58 @@ function aggiornaQuota(){
   const q = +$('#s-quota').value;
   $('#s-quota-val').textContent = `Filippo ${q}% · Simona ${100-q}%`;
 }
+/* divisione semplice: pulsanti rapidi, "Altro" apre il cursore */
+function impostaDivisione(q){
+  const rapido = [50, 0, 100].includes(q);
+  segm($('#s-div'), rapido ? String(q) : 'x');
+  $('#s-quota').value = q; aggiornaQuota();
+  $('#s-div-altro').classList.toggle('nascosto', rapido);
+}
+$('#s-div').onclick = (e) => {
+  const v = e.target.dataset.v; if (!v) return;
+  if (v === 'x'){ segm($('#s-div'), 'x'); $('#s-div-altro').classList.remove('nascosto'); }
+  else impostaDivisione(+v);
+};
+/* voci dello scontrino */
+const centInput = (c) => c ? (c/100).toFixed(2).replace('.', ',') : '';
+function rigaVoce(v = {}){
+  const d = document.createElement('div'); d.className = 'voce';
+  d.innerHTML = `<input class="v-desc" maxlength="60" placeholder="Descrizione voce (facoltativa)">
+    <input class="v-imp" inputmode="decimal" placeholder="Importo €">
+    <select class="v-div"><option value="50">Metà</option><option value="0">Tutta a Simona</option><option value="100">Tutta a Filippo</option></select>
+    <button type="button" class="v-x" aria-label="Togli voce">✕</button>`;
+  d.querySelector('.v-desc').value = v.descrizione || '';
+  d.querySelector('.v-imp').value = centInput(v.importo);
+  d.querySelector('.v-div').value = String(v.quotaFilippo ?? 50);
+  $('#s-voci').appendChild(d);
+}
+const modoVoci = () => !$('#s-voci-box').classList.contains('nascosto');
+function aggiornaTotaleVoci(){
+  if (!modoVoci()) return;
+  const tot = [...document.querySelectorAll('#s-voci .v-imp')].reduce((s,i) => s + (parseEuro(i.value) || 0), 0);
+  $('#s-imp').value = centInput(tot);
+}
+function attivaVoci(on, voci){
+  $('#s-voci-box').classList.toggle('nascosto', !on);
+  $('#s-div-semplice').classList.toggle('nascosto', on);
+  $('#s-imp').readOnly = on;
+  $('#s-voci-toggle').textContent = on ? 'Torna a una divisione unica' : 'Scontrino con voci da dividere in modo diverso';
+  $('#s-voci').innerHTML = '';
+  if (on){
+    if (voci?.length) voci.forEach(rigaVoce);
+    else { const imp = parseEuro($('#s-imp').value); rigaVoce(imp ? { importo: imp } : {}); rigaVoce(); }
+    aggiornaTotaleVoci();
+  }
+}
+$('#s-voci-toggle').onclick = () => attivaVoci(!modoVoci());
+$('#s-voce-add').onclick = () => { rigaVoce(); $('#s-voci .voce:last-child .v-imp').focus(); };
+$('#s-voci').addEventListener('input', aggiornaTotaleVoci);
+$('#s-voci').addEventListener('click', (e) => {
+  if (!e.target.classList.contains('v-x')) return;
+  e.target.closest('.voce').remove();
+  if (!$('#s-voci .voce')) rigaVoce();
+  aggiornaTotaleVoci();
+});
 function apriSpesa(m){
   spesaInModifica = m || null; fotoNuova = undefined;
   $('#titolo-spesa').textContent = m ? 'Modifica spesa' : 'Nuova spesa';
@@ -446,7 +529,8 @@ function apriSpesa(m){
   $('#s-cat-altro-box').classList.toggle('nascosto', sel.value !== '__altro');
   $('#s-per').value = m?.per || 'entrambe';
   segm($('#s-pagato'), m?.pagatoDa || io);
-  $('#s-quota').value = m?.quotaFilippo ?? 50; aggiornaQuota();
+  impostaDivisione(m?.quotaFilippo ?? 50);
+  attivaVoci(!!m?.voci?.length, m?.voci);
   $('#s-note').value = m?.note || '';
   $('#s-foto').value = '';
   const ant = $('#s-foto-anteprima'); ant.classList.add('nascosto'); ant.removeAttribute('src');
@@ -470,7 +554,20 @@ $('#s-foto-anteprima').onclick = () => { const w = window.open(); if (w) w.docum
 
 $('#form-spesa').onsubmit = async (e) => {
   e.preventDefault();
-  const importo = parseEuro($('#s-imp').value);
+  let voci = null;
+  if (modoVoci()){
+    voci = [];
+    for (const r of document.querySelectorAll('#s-voci .voce')){
+      const testo = r.querySelector('.v-imp').value.trim(), desc = r.querySelector('.v-desc').value.trim();
+      if (!testo && !desc) continue; // riga vuota
+      const imp = parseEuro(testo);
+      if (!imp){ toast('Importo di una voce non valido'); r.querySelector('.v-imp').focus(); return; }
+      voci.push({ descrizione: desc, importo: imp, quotaFilippo: +r.querySelector('.v-div').value });
+    }
+    if (!voci.length){ toast('Inserisci almeno una voce'); return; }
+    aggiornaTotaleVoci();
+  }
+  const importo = voci ? voci.reduce((s,v) => s + v.importo, 0) : parseEuro($('#s-imp').value);
   if (!importo){ toast('Importo non valido'); $('#s-imp').focus(); return; }
   let categoria = $('#s-cat').value;
   if (!categoria){ toast('Scegli una categoria'); return; }
@@ -480,7 +577,8 @@ $('#form-spesa').onsubmit = async (e) => {
     id: vecchia?.id || nuovoId(), tipo: 'spesa',
     descrizione: $('#s-desc').value.trim(), importo, data: $('#s-data').value,
     categoria, per: $('#s-per').value, pagatoDa: segmVal($('#s-pagato')),
-    quotaFilippo: +$('#s-quota').value, note: $('#s-note').value.trim(),
+    quotaFilippo: voci ? Math.round(voci.reduce((s,v) => s + v.importo * v.quotaFilippo, 0) / importo) : +$('#s-quota').value,
+    voci: voci || null, note: $('#s-note').value.trim(),
     foto: fotoNuova === undefined ? !!vecchia?.foto : !!fotoNuova,
     creatoDa: vecchia?.creatoDa || io, creatoIl: vecchia?.creatoIl || Date.now(),
     ...(vecchia ? { modificatoDa: io, modificatoIl: Date.now() } : {}),
@@ -541,9 +639,9 @@ function caricaScript(src){ return new Promise((ok, ko) => { const s = document.
 async function creaPDF(){
   if (!window.jspdf){
     try {
-      await caricaScript('vendor/jspdf.umd.min.js');
-      await caricaScript('vendor/jspdf.plugin.autotable.min.js');
-    } catch { toast('Non riesco a caricare il generatore PDF'); return; }
+      await caricaScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+      await caricaScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js');
+    } catch { toast('Serve la connessione per creare il PDF'); return; }
   }
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -566,7 +664,7 @@ async function creaPDF(){
 
   const tot = spese.reduce((s,m)=>s+m.importo,0);
   const pagF = spese.filter(m=>m.pagatoDa==='filippo').reduce((s,m)=>s+m.importo,0);
-  const quotaF = spese.reduce((s,m)=>s+Math.round(m.importo*m.quotaFilippo/100),0);
+  const quotaF = spese.reduce((s,m)=>s+quotaFCent(m),0);
   doc.autoTable({
     startY: 32, theme: 'plain', styles: { fontSize: 10, cellPadding: 1.4 },
     columnStyles: { 0: { cellWidth: 70, textColor: [111,106,128] }, 1: { fontStyle: 'bold' } },
@@ -584,8 +682,8 @@ async function creaPDF(){
   doc.autoTable({
     startY: doc.lastAutoTable.finalY + 12,
     head: [['Data','Descrizione','Categoria','Per','Pagata da','Importo','Quota F','Quota S']],
-    body: spese.length ? spese.map(m => { const qF = Math.round(m.importo*m.quotaFilippo/100); return [
-      dataBreve(m.data), m.descrizione + (m.note ? '\n' + m.note : ''), m.categoria, PER[m.per]||'', NOMI[m.pagatoDa], euro(m.importo), euro(qF), euro(m.importo-qF)]; })
+    body: spese.length ? spese.map(m => { const qF = quotaFCent(m); return [
+      dataBreve(m.data), m.descrizione + (m.voci?.length ? '\n' + m.voci.map(v => `• ${v.descrizione ? v.descrizione + ' ' : ''}${euro(v.importo)} (${nomeDivisione(v.quotaFilippo)})`).join('\n') : '') + (m.note ? '\n' + m.note : ''), m.categoria, PER[m.per]||'', NOMI[m.pagatoDa], euro(m.importo), euro(qF), euro(m.importo-qF)]; })
       : [[{ content: 'Nessuna spesa registrata nel mese', colSpan: 8, styles: { halign: 'center', textColor: [111,106,128] } }]],
     foot: spese.length ? [['', 'Totale', '', '', '', euro(tot), euro(quotaF), euro(tot-quotaF)]] : undefined,
     styles: { fontSize: 8.5, cellPadding: 2 }, headStyles: { fillColor: viola }, footStyles: { fillColor: [236,230,251], textColor: [34,29,51] },
