@@ -387,6 +387,15 @@ const dataBreve = (iso) => new Date(iso+'T12:00').toLocaleDateString('it-IT',{da
 const nomeMese = (ym) => new Date(ym+'-15T12:00').toLocaleDateString('it-IT',{month:'long', year:'numeric'});
 const spostaMese = (ym, d) => { const [y,m] = ym.split('-').map(Number); const t = new Date(y, m-1+d, 1); return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}`; };
 const nuovoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+/* Se la connessione al database si è chiusa (iPhone dopo una pausa), ricarica l'app da sola */
+function connessioneChiusa(err){
+  const t = String(err?.message || err || '');
+  if (!/terminated|IndexedDB|INTERNAL ASSERTION/i.test(t)) return false;
+  toast('Connessione persa, ricarico l\'app…');
+  setTimeout(() => location.reload(), 1200);
+  return true;
+}
+window.addEventListener('unhandledrejection', (e) => connessioneChiusa(e.reason));
 function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.remove('nascosto'); clearTimeout(toast._t); toast._t = setTimeout(()=>t.classList.add('nascosto'), 2600); }
 const icona = (m) => m.tipo === 'pagamento' ? '💶' : m.tipo === 'regolazione' ? '⚖️' : (CATEGORIE[m.categoria] || ICONA_ALTRO);
 
@@ -489,7 +498,9 @@ async function archivioFirebase(cfg){
     import(B+'firebase-app.js'), import(B+'firebase-auth.js'), import(B+'firebase-firestore.js')]);
   const app = initializeApp(cfg);
   const auth = A.getAuth(app);
-  const fs = F.initializeFirestore(app, { localCache: F.persistentLocalCache({ tabManager: F.persistentMultipleTabManager() }) });
+  // Cache in memoria: su iPhone la cache su disco (IndexedDB) viene chiusa da Safari quando l'app va in pausa
+  // e Firestore smette di funzionare ("The client has already been terminated").
+  const fs = F.initializeFirestore(app, { localCache: F.memoryLocalCache() });
   const prov = new A.GoogleAuthProvider(); prov.setCustomParameters({ prompt: 'select_account' });
 
   await A.getRedirectResult(auth).catch(e => mostraErroreAccesso(e));
@@ -759,7 +770,7 @@ async function aggiornaConfronto(patch, msg){
     await db.aggiorna(m.id, { ...patch, ['vistoDa.' + io]: Date.now() });
     const nuovo = movimenti.find(x => x.id === m.id) || m;
     spesaInModifica = nuovo; disegnaConfronto(nuovo); toast(msg);
-  } catch (err){ toast('Errore: ' + (err.code || err.message)); }
+  } catch (err){ if (!connessioneChiusa(err)) toast('Errore: ' + (err.code || err.message)); }
 }
 const nuovoCommento = (testo) => [...(spesaInModifica.commenti || []), { da: io, testo, quando: Date.now() }];
 $('#s-ok').onclick = () => aggiornaConfronto({ stato: 'ok', statoDa: io }, spesaInModifica.stato === 'discutere' ? 'Segnata come risolta' : 'Segnata: va bene');
@@ -827,7 +838,7 @@ $('#form-spesa').onsubmit = async (e) => {
     await db.salva(m);
     chiudi(); meseCorrente = m.data.slice(0,7); disegna();
     toast(vecchia ? 'Spesa aggiornata' : 'Spesa aggiunta');
-  } catch (err){ toast('Errore nel salvataggio: ' + (err.message || err)); }
+  } catch (err){ if (!connessioneChiusa(err)) toast('Errore nel salvataggio: ' + (err.message || err)); }
   finally { $('#s-salva').disabled = false; }
 };
 $('#s-elimina').onclick = async () => {
@@ -894,7 +905,7 @@ $('#form-pag').onsubmit = async (e) => {
     ...(v ? { modificatoDa: io, modificatoIl: Date.now() } : {}),
     stato: v?.stato || null, statoDa: v?.statoDa || null, commenti: v?.commenti || [], vistoDa: { ...(v?.vistoDa || {}), [io]: Date.now() } };
   try { await db.salva(m); chiudi(); meseCorrente = m.data.slice(0,7); disegna(); toast(tipo === 'regolazione' ? 'Regolazione registrata' : 'Pagamento registrato'); }
-  catch (err){ toast('Errore: ' + (err.message || err)); }
+  catch (err){ if (!connessioneChiusa(err)) toast('Errore: ' + (err.message || err)); }
 };
 $('#p-elimina').onclick = async () => {
   if (!pagInModifica || !puoModificare(pagInModifica) || !confirm('Eliminare questo pagamento? L\'operazione non si può annullare.')) return;
