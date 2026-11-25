@@ -17,6 +17,8 @@
     --oro:#ffc857; --sfondo:#f6f4fb; --carta:#fff; --testo:#221d33;
     --grigio:#6f6a80; --linea:#e4e0ee; --verde:#1f8a5b; --rosso:#c2410c;
     --ombra:0 2px 10px rgba(40,25,90,.08);
+    --col-filippo:#2f6fd6; --col-filippo-chiaro:#e3edfc;
+    --col-simona:#d9487a; --col-simona-chiaro:#fce4ee;
   }
   *{box-sizing:border-box}
   html,body{margin:0;background:var(--sfondo);color:var(--testo);
@@ -98,6 +100,31 @@
   .voce input,.voce select{padding:9px 10px}
   .voce .v-x{border:0;background:#fde8e1;color:var(--rosso);border-radius:10px;width:40px;font-size:16px}
   input[readonly]{background:var(--sfondo)}
+  fieldset{border:0;padding:0;margin:0;min-width:0}
+  fieldset:disabled{opacity:.75}
+  .mov{border-left:5px solid transparent}
+  .mov.da-filippo{border-left-color:var(--col-filippo)}
+  .mov.da-simona{border-left-color:var(--col-simona)}
+  .mov.da-filippo .ico{background:var(--col-filippo-chiaro)}
+  .mov.da-simona .ico{background:var(--col-simona-chiaro)}
+  .mov.nonvista{box-shadow:0 0 0 2px var(--oro),var(--ombra)}
+  .badge{display:inline-block;font-size:10.5px;font-weight:700;border-radius:6px;padding:2px 6px;margin-right:4px;vertical-align:1px}
+  .badge.nuova{background:var(--oro);color:#5a4200}
+  .badge.disc{background:#fde8e1;color:var(--rosso)}
+  .badge.ok{background:#dff3e9;color:var(--verde)}
+  .chi{font-weight:600}
+  .chi.filippo{color:var(--col-filippo)} .chi.simona{color:var(--col-simona)}
+  .legenda{display:flex;gap:14px;font-size:12px;color:var(--grigio);margin:2px 4px 6px}
+  .legenda i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  .banner-nuove{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff6dd;border:1px solid #f3dc9b;
+    border-radius:14px;padding:10px 12px;margin-top:12px;font-size:14px}
+  .banner-nuove .btn{padding:8px 10px;font-size:13px;white-space:nowrap}
+  .confronto{border-top:1px solid var(--linea);margin-top:16px;padding-top:4px}
+  .commento{border-radius:12px;padding:8px 10px;margin-top:8px;font-size:14px}
+  .commento.filippo{background:var(--col-filippo-chiaro)} .commento.simona{background:var(--col-simona-chiaro)}
+  .commento .quando{font-size:11px;color:var(--grigio);margin-left:6px}
+  .riga-comm{display:flex;gap:8px;margin-top:8px}
+  .riga-comm .btn{flex:none}
   .foto-anteprima{margin-top:8px;max-width:100%;border-radius:12px;display:block}
   .azioni{display:flex;gap:8px;margin-top:18px}
   .azioni .btn{flex:1}
@@ -165,12 +192,18 @@
       </div>
     </div>
 
+    <div id="banner-nuove" class="banner-nuove nascosto">
+      <span id="banner-testo"></span>
+      <button class="btn secondario" id="btn-tutte-viste">Segna tutte viste</button>
+    </div>
+
     <div class="mese">
       <button id="mese-prec" aria-label="Mese precedente">‹</button>
       <div class="nome"><span id="mese-nome"></span><div class="tot" id="mese-tot"></div></div>
       <button id="mese-succ" aria-label="Mese successivo">›</button>
     </div>
     <div class="filtri" id="filtri"></div>
+    <div class="legenda"><span><i style="background:var(--col-filippo)"></i>Inserite da Filippo</span><span><i style="background:var(--col-simona)"></i>Inserite da Simona</span></div>
     <div class="lista" id="lista"></div>
   </main>
   <button class="fab" id="btn-nuova">＋ Aggiungi spesa</button>
@@ -180,6 +213,8 @@
 <div class="velo nascosto" id="fin-spesa">
   <form class="foglio" id="form-spesa" autocomplete="off">
     <h2 id="titolo-spesa">Nuova spesa</h2>
+    <div id="s-sola-lettura" class="avviso nascosto"></div>
+    <fieldset id="s-campi">
     <label for="s-desc">Descrizione</label>
     <input id="s-desc" required maxlength="80" placeholder="Es. Retta danza, visita pediatra…">
     <div class="due">
@@ -224,7 +259,20 @@
     <input id="s-foto" type="file" accept="image/*">
     <img id="s-foto-anteprima" class="foto-anteprima nascosto" alt="Scontrino">
     <button type="button" id="s-foto-togli" class="btn pericolo nascosto" style="margin-top:8px">Togli foto</button>
+    </fieldset>
     <p class="info" id="s-autore"></p>
+    <div id="s-confronto" class="confronto nascosto">
+      <label style="margin-top:8px">Confronto</label>
+      <div class="riga-btn" style="margin-top:0">
+        <button type="button" class="btn secondario" id="s-ok">👍 Va bene</button>
+        <button type="button" class="btn pericolo" id="s-disc">⚠️ Da discutere</button>
+      </div>
+      <div id="s-commenti"></div>
+      <div class="riga-comm">
+        <input id="s-comm" maxlength="300" placeholder="Scrivi un commento…">
+        <button type="button" class="btn primario" id="s-comm-invia">Invia</button>
+      </div>
+    </div>
     <div class="azioni">
       <button type="button" class="btn pericolo nascosto" id="s-elimina">Elimina</button>
       <button type="button" class="btn secondario" data-chiudi>Annulla</button>
@@ -238,6 +286,8 @@
   <form class="foglio" id="form-pag" autocomplete="off">
     <h2 id="titolo-pag">Registra pagamento</h2>
     <p class="info">Quando uno dei due salda l'altro (bonifico, contanti…).</p>
+    <div id="p-sola-lettura" class="avviso nascosto"></div>
+    <fieldset id="p-campi">
     <label>Chi paga</label>
     <div class="segmenti" id="p-da"><button type="button" data-v="filippo">Filippo → Simona</button><button type="button" data-v="simona">Simona → Filippo</button></div>
     <div class="due">
@@ -246,11 +296,12 @@
     </div>
     <label for="p-note">Note</label>
     <input id="p-note" maxlength="120" placeholder="Es. bonifico">
+    </fieldset>
     <p class="info" id="p-autore"></p>
     <div class="azioni">
       <button type="button" class="btn pericolo nascosto" id="p-elimina">Elimina</button>
       <button type="button" class="btn secondario" data-chiudi>Annulla</button>
-      <button type="submit" class="btn primario">Salva</button>
+      <button type="submit" class="btn primario" id="p-salva">Salva</button>
     </div>
   </form>
 </div>
@@ -302,6 +353,30 @@ function effetto(m){
   const quotaF = quotaFCent(m);
   return m.pagatoDa === 'filippo' ? (m.importo - quotaF) : -quotaF;
 }
+/* Novità per me: creazione, modifica o commento fatti dall'altro dopo l'ultima volta che l'ho vista */
+function ultimoAltrui(m){
+  let t = 0;
+  if (m.creatoDa && m.creatoDa !== io) t = Math.max(t, m.creatoIl || 0);
+  if (m.modificatoDa && m.modificatoDa !== io) t = Math.max(t, m.modificatoIl || 0);
+  for (const c of m.commenti || []) if (c.da !== io) t = Math.max(t, c.quando || 0);
+  return t;
+}
+const nonVisto = (m) => ultimoAltrui(m) > (m.vistoDa?.[io] || 0);
+const segnaVisto = (m) => db.aggiorna(m.id, { ['vistoDa.' + io]: Date.now() }).catch(() => {});
+const puoModificare = (m) => !m || !m.creatoDa || m.creatoDa === io;
+const oraBreve = (t) => new Date(t).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+function badge(m){
+  let b = '';
+  if (nonVisto(m)){
+    const visto = m.vistoDa?.[io] || 0;
+    const tipo = (m.creatoDa !== io && (m.creatoIl||0) > visto) ? 'NUOVA'
+      : (m.modificatoDa && m.modificatoDa !== io && (m.modificatoIl||0) > visto) ? 'MODIFICATA' : 'NUOVO COMMENTO';
+    b += `<span class="badge nuova">${tipo}</span>`;
+  }
+  if (m.stato === 'discutere') b += '<span class="badge disc">DA DISCUTERE</span>';
+  else if (m.stato === 'ok' && m.creatoDa === io && m.statoDa !== io) b += `<span class="badge ok">✓ ${NOMI[ALTRO(io)]}</span>`;
+  return b;
+}
 const nomeDivisione = (q) => q === 50 ? 'metà' : q === 0 ? 'tutta a Simona' : q === 100 ? 'tutta a Filippo' : `F ${q}% · S ${100-q}%`;
 function testoDivisione(m){
   if (Array.isArray(m.voci) && m.voci.length) return `${m.voci.length} voci`;
@@ -341,6 +416,15 @@ function archivioLocale(){
     async personeOccupate(){ return []; },
     ascolta(f){ ascoltatori.push(f); f(Object.values(leggi())); },
     async salva(m){ const o = leggi(); o[m.id] = m; scrivi(o); },
+    async aggiorna(id, patch){
+      const o = leggi(), m = o[id]; if (!m) return;
+      for (const [k, v] of Object.entries(patch)){
+        const parti = k.split('.'); let t = m;
+        while (parti.length > 1){ const c = parti.shift(); t = t[c] = (t[c] && typeof t[c] === 'object') ? t[c] : {}; }
+        t[parti[0]] = v;
+      }
+      scrivi(o);
+    },
     async elimina(id){ const o = leggi(); delete o[id]; scrivi(o); localStorage.removeItem(KF+id); },
     async salvaFoto(id, url){ try { localStorage.setItem(KF+id, url); } catch { throw new Error('Spazio esaurito sul dispositivo'); } },
     async leggiFoto(id){ return localStorage.getItem(KF+id); },
@@ -385,6 +469,7 @@ async function archivioFirebase(cfg){
     async personeOccupate(){ const s = await F.getDocs(F.collection(fs, 'membri')); return s.docs.filter(d => d.id !== user.uid).map(d => d.data().persona); },
     ascolta(f){ F.onSnapshot(F.collection(fs, 'movimenti'), s => f(s.docs.map(d => d.data())), e => toast('Errore di sincronizzazione: ' + e.code)); },
     async salva(m){ await F.setDoc(F.doc(fs, 'movimenti', m.id), m); },
+    async aggiorna(id, patch){ await F.updateDoc(F.doc(fs, 'movimenti', id), patch); },
     async elimina(id){ await F.deleteDoc(F.doc(fs, 'movimenti', id)); await F.deleteDoc(F.doc(fs, 'foto', id)).catch(()=>{}); },
     async salvaFoto(id, url){ await F.setDoc(F.doc(fs, 'foto', id), { dati: url }); },
     async leggiFoto(id){ const d = await F.getDoc(F.doc(fs, 'foto', id)); return d.exists() ? d.data().dati : null; },
@@ -423,6 +508,15 @@ function disegna(){
     sotto.textContent = deb === io ? 'Tocca a te saldare.' : 'Ti spetta questo importo.';
   }
 
+  // novità dall'altro genitore
+  const nuove = movimenti.filter(nonVisto), disc = movimenti.filter(m => m.stato === 'discutere');
+  const parti = [];
+  if (nuove.length) parti.push(`<b class="chi ${ALTRO(io)}">${NOMI[ALTRO(io)]}</b>: ${nuove.length === 1 ? '1 novità' : nuove.length + ' novità'} da vedere`);
+  if (disc.length) parti.push(`${disc.length} da discutere`);
+  $('#banner-nuove').classList.toggle('nascosto', !parti.length);
+  $('#banner-testo').innerHTML = parti.join(' · ');
+  $('#btn-tutte-viste').classList.toggle('nascosto', !nuove.length);
+
   // mese
   $('#mese-nome').textContent = nomeMese(meseCorrente);
   const delMese = ordinati(movimenti.filter(m => m.data.startsWith(meseCorrente)));
@@ -445,15 +539,16 @@ function disegna(){
     if (m.data !== giorno){ giorno = m.data; html += `<div class="giorno">${dataLunga(giorno)}</div>`; }
     const e = effetto(m), mio = io === 'filippo' ? e : -e; // >0 = a mio favore
     if (m.tipo === 'pagamento'){
-      html += `<button class="mov pag" data-id="${m.id}"><div class="ico">💶</div><div class="centro">
+      html += `<button class="mov pag da-${m.creatoDa} ${nonVisto(m)?'nonvista':''}" data-id="${m.id}"><div class="ico">💶</div><div class="centro">
         <div class="titolo">${NOMI[m.da]} ha pagato ${NOMI[ALTRO(m.da)]}</div>
-        <div class="dett">${esc(m.note || 'Pagamento')}</div></div>
+        <div class="dett">${badge(m)}${esc(m.note || 'Pagamento')}</div></div>
         <div class="dx"><div class="imp">${euro(m.importo)}</div></div></button>`;
     } else {
       const pq = testoDivisione(m);
-      html += `<button class="mov" data-id="${m.id}"><div class="ico">${icona(m)}</div><div class="centro">
-        <div class="titolo">${esc(m.descrizione)}${m.foto ? ' 📎' : ''}</div>
-        <div class="dett">Pagata da ${NOMI[m.pagatoDa]} · ${PER[m.per]||''} · ${pq}</div></div>
+      const nc = (m.commenti || []).length;
+      html += `<button class="mov da-${m.creatoDa} ${nonVisto(m)?'nonvista':''}" data-id="${m.id}"><div class="ico">${icona(m)}</div><div class="centro">
+        <div class="titolo">${esc(m.descrizione)}${m.foto ? ' 📎' : ''}${nc ? ` 💬${nc}` : ''}</div>
+        <div class="dett">${badge(m)}Pagata da ${NOMI[m.pagatoDa]} · ${PER[m.per]||''} · ${pq}</div></div>
         <div class="dx"><div class="imp">${euro(m.importo)}</div>
         <div class="quota ${mio>0?'su':'giu'}">${mio>0?'ti spettano ':'devi '}${euro(Math.abs(mio))}</div></div></button>`;
     }
@@ -541,8 +636,17 @@ function apriSpesa(m){
   $('#s-foto').value = '';
   const ant = $('#s-foto-anteprima'); ant.classList.add('nascosto'); ant.removeAttribute('src');
   $('#s-foto-togli').classList.add('nascosto');
-  if (m?.foto){ db.leggiFoto(m.id).then(u => { if (u && spesaInModifica?.id === m.id){ ant.src = u; ant.classList.remove('nascosto'); $('#s-foto-togli').classList.remove('nascosto'); } }); }
-  $('#s-elimina').classList.toggle('nascosto', !m);
+  const mia = puoModificare(m);
+  if (m?.foto){ db.leggiFoto(m.id).then(u => { if (u && spesaInModifica?.id === m.id){ ant.src = u; ant.classList.remove('nascosto'); $('#s-foto-togli').classList.toggle('nascosto', !mia); } }); }
+  $('#s-campi').disabled = !mia;
+  $('#s-sola-lettura').classList.toggle('nascosto', mia);
+  if (!mia) $('#s-sola-lettura').innerHTML = `Spesa inserita da <b class="chi ${m.creatoDa}">${NOMI[m.creatoDa]}</b>: puoi segnarla o commentarla, ma solo ${m.creatoDa === 'simona' ? 'lei' : 'lui'} può modificarla o eliminarla.`;
+  $('#titolo-spesa').textContent = !m ? 'Nuova spesa' : mia ? 'Modifica spesa' : 'Spesa';
+  $('#s-elimina').classList.toggle('nascosto', !m || !mia);
+  $('#s-salva').classList.toggle('nascosto', !mia);
+  $('#fin-spesa [data-chiudi]').textContent = mia ? 'Annulla' : 'Chiudi';
+  disegnaConfronto(m);
+  if (m && nonVisto(m)) segnaVisto(m);
   $('#s-autore').textContent = m ? `Inserita da ${NOMI[m.creatoDa] || '—'}${m.modificatoDa ? ` · ultima modifica di ${NOMI[m.modificatoDa]}` : ''}` : '';
   $('#fin-spesa').classList.remove('nascosto'); document.body.classList.add('bloccato'); $('#fin-spesa .foglio').scrollTop = 0;
   if (!m) setTimeout(() => $('#s-desc').focus(), 50);
@@ -558,8 +662,50 @@ $('#s-foto').onchange = async () => {
 $('#s-foto-togli').onclick = () => { fotoNuova = null; $('#s-foto').value = ''; $('#s-foto-anteprima').classList.add('nascosto'); $('#s-foto-togli').classList.add('nascosto'); };
 $('#s-foto-anteprima').onclick = () => { const w = window.open(); if (w) w.document.write(`<img src="${$('#s-foto-anteprima').src}" style="max-width:100%">`); };
 
+/* ---------- confronto: va bene / da discutere / commenti ---------- */
+function disegnaConfronto(m){
+  $('#s-confronto').classList.toggle('nascosto', !m);
+  if (!m) return;
+  const altro = m.creatoDa !== io;
+  $('#s-ok').classList.toggle('nascosto', !(altro || m.stato === 'discutere'));
+  $('#s-ok').textContent = m.stato === 'discutere' ? '✓ Risolto' : (m.stato === 'ok' ? '👍 Già segnata: va bene' : '👍 Va bene');
+  $('#s-ok').disabled = m.stato === 'ok';
+  $('#s-disc').classList.toggle('nascosto', m.stato === 'discutere');
+  const cc = m.commenti || [];
+  $('#s-commenti').innerHTML = (m.stato === 'ok' && m.creatoDa === io && m.statoDa !== io ? `<p class="info">✓ ${NOMI[ALTRO(io)]} ha segnato questa spesa come “va bene”.</p>` : '')
+    + (m.stato === 'discutere' ? `<p class="info" style="color:var(--rosso)">⚠️ Segnata come da discutere.</p>` : '')
+    + cc.map(c => `<div class="commento ${c.da}"><b class="chi ${c.da}">${NOMI[c.da]}</b><span class="quando">${oraBreve(c.quando)}</span><div>${esc(c.testo)}</div></div>`).join('');
+  $('#s-comm').value = '';
+}
+async function aggiornaConfronto(patch, msg){
+  const m = spesaInModifica; if (!m) return;
+  try {
+    await db.aggiorna(m.id, { ...patch, ['vistoDa.' + io]: Date.now() });
+    const nuovo = movimenti.find(x => x.id === m.id) || m;
+    spesaInModifica = nuovo; disegnaConfronto(nuovo); toast(msg);
+  } catch (err){ toast('Errore: ' + (err.code || err.message)); }
+}
+const nuovoCommento = (testo) => [...(spesaInModifica.commenti || []), { da: io, testo, quando: Date.now() }];
+$('#s-ok').onclick = () => aggiornaConfronto({ stato: 'ok', statoDa: io }, spesaInModifica.stato === 'discutere' ? 'Segnata come risolta' : 'Segnata: va bene');
+$('#s-disc').onclick = () => {
+  const t = $('#s-comm').value.trim();
+  if (!t){ toast('Scrivi nel commento cosa non torna'); $('#s-comm').focus(); return; }
+  aggiornaConfronto({ stato: 'discutere', statoDa: io, commenti: nuovoCommento(t) }, 'Segnata da discutere');
+};
+$('#s-comm-invia').onclick = () => {
+  const t = $('#s-comm').value.trim(); if (!t) return;
+  aggiornaConfronto({ commenti: nuovoCommento(t) }, 'Commento inviato');
+};
+$('#s-comm').addEventListener('keydown', (e) => { if (e.key === 'Enter'){ e.preventDefault(); $('#s-comm-invia').click(); } });
+$('#btn-tutte-viste').onclick = async () => {
+  const daVedere = movimenti.filter(nonVisto);
+  await Promise.all(daVedere.map(segnaVisto));
+  toast('Tutto segnato come visto');
+};
+
 $('#form-spesa').onsubmit = async (e) => {
   e.preventDefault();
+  if (!puoModificare(spesaInModifica)) return;
   let voci = null;
   if (modoVoci()){
     voci = [];
@@ -588,6 +734,9 @@ $('#form-spesa').onsubmit = async (e) => {
     foto: fotoNuova === undefined ? !!vecchia?.foto : !!fotoNuova,
     creatoDa: vecchia?.creatoDa || io, creatoIl: vecchia?.creatoIl || Date.now(),
     ...(vecchia ? { modificatoDa: io, modificatoIl: Date.now() } : {}),
+    // dopo una modifica il "va bene" dell'altro non vale più; commenti e "visto" restano
+    stato: vecchia?.stato === 'discutere' ? 'discutere' : null, statoDa: vecchia?.stato === 'discutere' ? (vecchia.statoDa || null) : null,
+    commenti: vecchia?.commenti || [], vistoDa: { ...(vecchia?.vistoDa || {}), [io]: Date.now() },
   };
   $('#s-salva').disabled = true;
   try {
@@ -600,7 +749,7 @@ $('#form-spesa').onsubmit = async (e) => {
   finally { $('#s-salva').disabled = false; }
 };
 $('#s-elimina').onclick = async () => {
-  if (!spesaInModifica || !confirm(`Eliminare “${spesaInModifica.descrizione}”? L'operazione non si può annullare.`)) return;
+  if (!spesaInModifica || !puoModificare(spesaInModifica) || !confirm(`Eliminare “${spesaInModifica.descrizione}”? L'operazione non si può annullare.`)) return;
   await db.elimina(spesaInModifica.id); chiudi(); toast('Spesa eliminata');
 };
 
@@ -615,24 +764,34 @@ function apriPagamento(m){
   $('#p-imp').value = m ? (m.importo/100).toFixed(2).replace('.', ',') : (credito ? (Math.abs(credito)/100).toFixed(2).replace('.', ',') : '');
   $('#p-data').value = m?.data || oggiISO();
   $('#p-note').value = m?.note || '';
-  $('#p-elimina').classList.toggle('nascosto', !m);
+  const mio = puoModificare(m);
+  $('#p-campi').disabled = !mio;
+  $('#p-sola-lettura').classList.toggle('nascosto', mio);
+  if (!mio) $('#p-sola-lettura').innerHTML = `Pagamento registrato da <b class="chi ${m.creatoDa}">${NOMI[m.creatoDa]}</b>: solo ${m.creatoDa === 'simona' ? 'lei' : 'lui'} può modificarlo o eliminarlo.`;
+  if (m && !mio) $('#titolo-pag').textContent = 'Pagamento';
+  $('#p-salva').classList.toggle('nascosto', !mio);
+  $('#fin-pag [data-chiudi]').textContent = mio ? 'Annulla' : 'Chiudi';
+  if (m && nonVisto(m)) segnaVisto(m);
+  $('#p-elimina').classList.toggle('nascosto', !m || !mio);
   $('#p-autore').textContent = m ? `Registrato da ${NOMI[m.creatoDa] || '—'}` : (credito ? 'Importo proposto: il saldo attuale, per azzerare il conto.' : '');
   $('#fin-pag').classList.remove('nascosto'); document.body.classList.add('bloccato'); $('#fin-pag .foglio').scrollTop = 0;
 }
 $('#p-da').onclick = (e) => { if (e.target.dataset.v) segm($('#p-da'), e.target.dataset.v); };
 $('#form-pag').onsubmit = async (e) => {
   e.preventDefault();
+  if (!puoModificare(pagInModifica)) return;
   const importo = parseEuro($('#p-imp').value);
   if (!importo){ toast('Importo non valido'); return; }
   const v = pagInModifica, da = segmVal($('#p-da'));
   const m = { id: v?.id || nuovoId(), tipo: 'pagamento', da, a: ALTRO(da), importo, data: $('#p-data').value,
     note: $('#p-note').value.trim(), creatoDa: v?.creatoDa || io, creatoIl: v?.creatoIl || Date.now(),
-    ...(v ? { modificatoDa: io, modificatoIl: Date.now() } : {}) };
+    ...(v ? { modificatoDa: io, modificatoIl: Date.now() } : {}),
+    stato: v?.stato || null, statoDa: v?.statoDa || null, commenti: v?.commenti || [], vistoDa: { ...(v?.vistoDa || {}), [io]: Date.now() } };
   try { await db.salva(m); chiudi(); meseCorrente = m.data.slice(0,7); disegna(); toast('Pagamento registrato'); }
   catch (err){ toast('Errore: ' + (err.message || err)); }
 };
 $('#p-elimina').onclick = async () => {
-  if (!pagInModifica || !confirm('Eliminare questo pagamento? L\'operazione non si può annullare.')) return;
+  if (!pagInModifica || !puoModificare(pagInModifica) || !confirm('Eliminare questo pagamento? L\'operazione non si può annullare.')) return;
   await db.elimina(pagInModifica.id); chiudi(); toast('Pagamento eliminato');
 };
 
