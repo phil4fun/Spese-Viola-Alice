@@ -70,10 +70,16 @@
     border:0;border-radius:28px;padding:15px 22px;font-weight:700;font-size:16px;box-shadow:0 6px 18px rgba(109,79,194,.4)}
   .avviso{background:#fff6dd;border:1px solid #f3dc9b;color:#6b5210;border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:10px}
   /* finestre */
-  .velo{position:fixed;inset:0;background:rgba(25,18,45,.45);display:flex;align-items:flex-end;justify-content:center;z-index:20}
+  .velo{position:fixed;left:0;right:0;top:var(--vvt,0px);height:var(--vvh,100%);background:rgba(25,18,45,.45);display:flex;align-items:flex-end;justify-content:center;z-index:20}
   .foglio{background:var(--carta);width:100%;max-width:640px;max-height:92vh;overflow:auto;border-radius:20px 20px 0 0;
     padding:18px 16px calc(18px + env(safe-area-inset-bottom))}
   @media(min-width:700px){.velo{align-items:center}.foglio{border-radius:20px}}
+  .foglio{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+  @media(max-width:699px){
+    .velo{align-items:stretch}
+    .foglio{max-height:none;height:100%;border-radius:0;padding-top:calc(16px + env(safe-area-inset-top))}
+  }
+  body.bloccato{overflow:hidden}
   .foglio h2{margin:0 0 12px;font-size:19px}
   label{display:block;font-size:13px;color:var(--grigio);margin:12px 0 5px}
   input,select,textarea{width:100%;border:1px solid var(--linea);border-radius:12px;padding:11px 12px;background:#fff;font-size:16px}
@@ -538,7 +544,7 @@ function apriSpesa(m){
   if (m?.foto){ db.leggiFoto(m.id).then(u => { if (u && spesaInModifica?.id === m.id){ ant.src = u; ant.classList.remove('nascosto'); $('#s-foto-togli').classList.remove('nascosto'); } }); }
   $('#s-elimina').classList.toggle('nascosto', !m);
   $('#s-autore').textContent = m ? `Inserita da ${NOMI[m.creatoDa] || '—'}${m.modificatoDa ? ` · ultima modifica di ${NOMI[m.modificatoDa]}` : ''}` : '';
-  $('#fin-spesa').classList.remove('nascosto');
+  $('#fin-spesa').classList.remove('nascosto'); document.body.classList.add('bloccato'); $('#fin-spesa .foglio').scrollTop = 0;
   if (!m) setTimeout(() => $('#s-desc').focus(), 50);
 }
 $('#s-cat').onchange = () => { $('#s-cat-altro-box').classList.toggle('nascosto', $('#s-cat').value !== '__altro'); if ($('#s-cat').value === '__altro') $('#s-cat-altro').focus(); };
@@ -611,7 +617,7 @@ function apriPagamento(m){
   $('#p-note').value = m?.note || '';
   $('#p-elimina').classList.toggle('nascosto', !m);
   $('#p-autore').textContent = m ? `Registrato da ${NOMI[m.creatoDa] || '—'}` : (credito ? 'Importo proposto: il saldo attuale, per azzerare il conto.' : '');
-  $('#fin-pag').classList.remove('nascosto');
+  $('#fin-pag').classList.remove('nascosto'); document.body.classList.add('bloccato'); $('#fin-pag .foglio').scrollTop = 0;
 }
 $('#p-da').onclick = (e) => { if (e.target.dataset.v) segm($('#p-da'), e.target.dataset.v); };
 $('#form-pag').onsubmit = async (e) => {
@@ -630,7 +636,22 @@ $('#p-elimina').onclick = async () => {
   await db.elimina(pagInModifica.id); chiudi(); toast('Pagamento eliminato');
 };
 
-function chiudi(){ document.querySelectorAll('.velo').forEach(v => v.classList.add('nascosto')); }
+function chiudi(){ document.querySelectorAll('.velo').forEach(v => v.classList.add('nascosto')); document.body.classList.remove('bloccato'); }
+
+/* iPhone: la finestra segue l'area visibile quando si apre la tastiera,
+   e il campo in cui si scrive viene portato al centro */
+(function(){
+  const vv = window.visualViewport; if (!vv) return;
+  const adatta = () => {
+    document.documentElement.style.setProperty('--vvh', vv.height + 'px');
+    document.documentElement.style.setProperty('--vvt', vv.offsetTop + 'px');
+  };
+  vv.addEventListener('resize', adatta); vv.addEventListener('scroll', adatta); adatta();
+})();
+document.addEventListener('focusin', (e) => {
+  if (!e.target.closest('.foglio') || !e.target.matches('input:not([type=file]),select,textarea')) return;
+  setTimeout(() => e.target.scrollIntoView({ block: 'center', behavior: 'smooth' }), 350);
+});
 document.querySelectorAll('[data-chiudi]').forEach(b => b.onclick = chiudi);
 document.querySelectorAll('.velo').forEach(v => v.addEventListener('click', e => { if (e.target === v) chiudi(); }));
 
