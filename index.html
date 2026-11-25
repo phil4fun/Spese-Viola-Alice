@@ -125,6 +125,25 @@
   .commento .quando{font-size:11px;color:var(--grigio);margin-left:6px}
   .riga-comm{display:flex;gap:8px;margin-top:8px}
   .riga-comm .btn{flex:none}
+  .schede{display:flex;gap:4px;background:rgba(255,255,255,.16);border-radius:12px;padding:3px;margin-top:12px;max-width:640px}
+  .schede button{flex:1;border:0;background:transparent;color:#fff;border-radius:10px;padding:8px;font-weight:600}
+  .schede button.on{background:#fff;color:var(--viola-scuro)}
+  .card h3{margin:0 0 10px;font-size:16px}
+  .card + .card{margin-top:12px}
+  .riga-tot{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--linea);font-size:14px}
+  .riga-tot:last-child{border-bottom:0}
+  .riga-tot b{white-space:nowrap}
+  .riga-tot.grande{font-size:17px}
+  .barra{margin:8px 0}
+  .barra .testa{display:flex;justify-content:space-between;font-size:14px;gap:8px}
+  .barra .fondo{height:8px;background:var(--sfondo);border-radius:6px;margin-top:4px;overflow:hidden}
+  .barra .pieno{height:100%;background:var(--viola);border-radius:6px}
+  .gruppo730{margin-top:8px}
+  .gruppo730 .intesta{display:flex;justify-content:space-between;font-weight:700;padding:8px 0 4px;border-bottom:2px solid var(--viola-chiaro)}
+  .voce730{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;padding:6px 0;border-bottom:1px dashed var(--linea);cursor:pointer}
+  .voce730 .d{color:var(--grigio);white-space:nowrap}
+  .check{display:flex;align-items:center;gap:10px;color:var(--testo);font-size:15px;margin-top:16px}
+  .check input{width:22px;height:22px;margin:0;accent-color:var(--viola)}
   .foto-anteprima{margin-top:8px;max-width:100%;border-radius:12px;display:block}
   .azioni{display:flex;gap:8px;margin-top:18px}
   .azioni .btn{flex:1}
@@ -175,6 +194,7 @@
     <h1>Spese Viola &amp; Alice</h1>
     <div class="utente" id="utente"></div>
     <button class="esci" id="btn-esci">Esci</button>
+    <div class="schede" id="schede"><button data-vista="spese" class="on">Spese</button><button data-vista="riepilogo">Riepilogo</button></div>
   </header>
   <main>
     <div id="avviso-prova" class="avviso nascosto">
@@ -182,6 +202,7 @@
       Si attiva la sincronizzazione completando la configurazione di Firebase.
     </div>
 
+    <div id="vista-spese">
     <div class="card saldo">
       <div class="etichetta">Saldo complessivo</div>
       <div class="frase" id="saldo-frase">—</div>
@@ -205,6 +226,26 @@
     <div class="filtri" id="filtri"></div>
     <div class="legenda"><span><i style="background:var(--col-filippo)"></i>Inserite da Filippo</span><span><i style="background:var(--col-simona)"></i>Inserite da Simona</span></div>
     <div class="lista" id="lista"></div>
+    </div>
+
+    <div id="vista-riepilogo" class="nascosto">
+      <div class="card">
+        <div class="mese" style="margin:0 0 6px">
+          <button id="anno-prec" aria-label="Anno precedente">‹</button>
+          <div class="nome"><span id="anno-nome"></span><div class="tot">riepilogo dell'anno</div></div>
+          <button id="anno-succ" aria-label="Anno successivo">›</button>
+        </div>
+        <div id="r-totali"></div>
+        <div class="riga-btn"><button class="btn secondario" id="btn-pdf-anno">PDF riepilogo dell'anno</button></div>
+      </div>
+      <div class="card"><h3>🧾 Detraibili per il 730</h3><div id="r-730"></div>
+        <div class="riga-btn"><button class="btn primario" id="btn-pdf-730">PDF per il 730, con scontrini</button></div>
+        <p class="info">Le spese delle bambine si detraggono di norma in base a come sono fiscalmente a carico (spesso metà ciascuno): verifica con il CAF.</p>
+      </div>
+      <div class="card"><h3>Per categoria</h3><div id="r-cat"></div></div>
+      <div class="card"><h3>Per figlia</h3><div id="r-figlie"></div></div>
+      <div class="card"><h3>Per mese</h3><div id="r-mesi"></div></div>
+    </div>
   </main>
   <button class="fab" id="btn-nuova">＋ Aggiungi spesa</button>
 </div>
@@ -253,6 +294,12 @@
       <button type="button" class="btn secondario" id="s-voce-add" style="margin-top:6px">＋ Aggiungi voce</button>
     </div>
     <button type="button" class="link" id="s-voci-toggle">Scontrino con voci da dividere in modo diverso</button>
+    <label class="check"><input type="checkbox" id="s-detr"> Detraibile per il 730</label>
+    <div id="s-detr-box" class="due nascosto">
+      <div><label for="s-detr-imp">Importo detraibile (€)</label><input id="s-detr-imp" inputmode="decimal" placeholder="0,00"></div>
+      <div><label for="s-detr-int">Codice fiscale di</label>
+        <select id="s-detr-int"><option value="alice">Alice</option><option value="filippo">Filippo</option><option value="simona">Simona</option><option value="viola">Viola</option></select></div>
+    </div>
     <label for="s-note">Note</label>
     <textarea id="s-note" maxlength="300" placeholder="Facoltative"></textarea>
     <label>Foto scontrino</label>
@@ -315,6 +362,7 @@ import { firebaseConfig } from './firebase-config.js';
 const NOMI = { filippo: 'Filippo', simona: 'Simona' };
 const ALTRO = (p) => p === 'filippo' ? 'simona' : 'filippo';
 const PER = { entrambe: 'Viola e Alice', viola: 'Viola', alice: 'Alice' };
+const INTESTATARI = { filippo: 'Filippo', simona: 'Simona', viola: 'Viola', alice: 'Alice' };
 // Ordine alfabetico automatico, "Altro" sempre in fondo e compilabile
 const CATEGORIE = Object.fromEntries([
   ['Abbigliamento','👕'], ['Libri e cancelleria','📚'], ['Mensa','🍽️'], ['Salute','🩺'],
@@ -548,7 +596,7 @@ function disegna(){
       const nc = (m.commenti || []).length;
       html += `<button class="mov da-${m.creatoDa} ${nonVisto(m)?'nonvista':''}" data-id="${m.id}"><div class="ico">${icona(m)}</div><div class="centro">
         <div class="titolo">${esc(m.descrizione)}${m.foto ? ' 📎' : ''}${nc ? ` 💬${nc}` : ''}</div>
-        <div class="dett">${badge(m)}Pagata da ${NOMI[m.pagatoDa]} · ${PER[m.per]||''} · ${pq}</div></div>
+        <div class="dett">${badge(m)}Pagata da ${NOMI[m.pagatoDa]} · ${PER[m.per]||''} · ${pq}${m.detraibile ? ' · 730' : ''}</div></div>
         <div class="dx"><div class="imp">${euro(m.importo)}</div>
         <div class="quota ${mio>0?'su':'giu'}">${mio>0?'ti spettano ':'devi '}${euro(Math.abs(mio))}</div></div></button>`;
     }
@@ -595,6 +643,7 @@ function aggiornaTotaleVoci(){
   if (!modoVoci()) return;
   const tot = [...document.querySelectorAll('#s-voci .v-imp')].reduce((s,i) => s + (parseEuro(i.value) || 0), 0);
   $('#s-imp').value = centInput(tot);
+  syncDetr();
 }
 function attivaVoci(on, voci){
   $('#s-voci-box').classList.toggle('nascosto', !on);
@@ -632,6 +681,11 @@ function apriSpesa(m){
   segm($('#s-pagato'), m?.pagatoDa || io);
   impostaDivisione(m?.quotaFilippo ?? 50);
   attivaVoci(!!m?.voci?.length, m?.voci);
+  detrToccato = !!m?.detraibile;
+  $('#s-detr').checked = !!m?.detraibile;
+  $('#s-detr-imp').value = m?.detraibile ? centInput(m.detraibile.importo) : '';
+  $('#s-detr-int').value = m?.detraibile?.intestatario || 'filippo';
+  $('#s-detr-box').classList.toggle('nascosto', !m?.detraibile);
   $('#s-note').value = m?.note || '';
   $('#s-foto').value = '';
   const ant = $('#s-foto-anteprima'); ant.classList.add('nascosto'); ant.removeAttribute('src');
@@ -661,6 +715,21 @@ $('#s-foto').onchange = async () => {
 };
 $('#s-foto-togli').onclick = () => { fotoNuova = null; $('#s-foto').value = ''; $('#s-foto-anteprima').classList.add('nascosto'); $('#s-foto-togli').classList.add('nascosto'); };
 $('#s-foto-anteprima').onclick = () => { const w = window.open(); if (w) w.document.write(`<img src="${$('#s-foto-anteprima').src}" style="max-width:100%">`); };
+
+/* ---------- detraibile 730 ---------- */
+let detrToccato = false; // l'importo detraibile è stato scritto a mano?
+const intestatarioProposto = () => ({ viola: 'viola', alice: 'alice' })[$('#s-per').value] || segmVal($('#s-pagato')) || io;
+function syncDetr(){ if ($('#s-detr').checked && !detrToccato) $('#s-detr-imp').value = $('#s-imp').value; }
+function attivaDetr(on){
+  $('#s-detr').checked = on;
+  $('#s-detr-box').classList.toggle('nascosto', !on);
+  if (on){ if (!spesaInModifica?.detraibile) $('#s-detr-int').value = intestatarioProposto(); syncDetr(); }
+}
+$('#s-detr').onchange = () => attivaDetr($('#s-detr').checked);
+$('#s-detr-imp').addEventListener('input', () => { detrToccato = true; });
+$('#s-imp').addEventListener('input', syncDetr);
+$('#s-cat').addEventListener('change', () => { if (!spesaInModifica && $('#s-cat').value === 'Salute' && !$('#s-detr').checked) attivaDetr(true); });
+$('#s-per').addEventListener('change', () => { if ($('#s-detr').checked && !spesaInModifica?.detraibile) $('#s-detr-int').value = intestatarioProposto(); });
 
 /* ---------- confronto: va bene / da discutere / commenti ---------- */
 function disegnaConfronto(m){
@@ -724,13 +793,19 @@ $('#form-spesa').onsubmit = async (e) => {
   let categoria = $('#s-cat').value;
   if (!categoria){ toast('Scegli una categoria'); return; }
   if (categoria === '__altro'){ categoria = $('#s-cat-altro').value.trim(); if (!categoria){ toast('Scrivi la categoria'); $('#s-cat-altro').focus(); return; } }
+  let detraibile = null;
+  if ($('#s-detr').checked){
+    const di = parseEuro($('#s-detr-imp').value) || importo;
+    if (di > importo){ toast('L\'importo detraibile supera il totale'); $('#s-detr-imp').focus(); return; }
+    detraibile = { importo: di, intestatario: $('#s-detr-int').value };
+  }
   const vecchia = spesaInModifica;
   const m = {
     id: vecchia?.id || nuovoId(), tipo: 'spesa',
     descrizione: $('#s-desc').value.trim(), importo, data: $('#s-data').value,
     categoria, per: $('#s-per').value, pagatoDa: segmVal($('#s-pagato')),
     quotaFilippo: voci ? Math.round(voci.reduce((s,v) => s + v.importo * v.quotaFilippo, 0) / importo) : +$('#s-quota').value,
-    voci: voci || null, note: $('#s-note').value.trim(),
+    voci: voci || null, detraibile, note: $('#s-note').value.trim(),
     foto: fotoNuova === undefined ? !!vecchia?.foto : !!fotoNuova,
     creatoDa: vecchia?.creatoDa || io, creatoIl: vecchia?.creatoIl || Date.now(),
     ...(vecchia ? { modificatoDa: io, modificatoIl: Date.now() } : {}),
@@ -816,13 +891,35 @@ document.querySelectorAll('.velo').forEach(v => v.addEventListener('click', e =>
 
 /* ---------- PDF mensile ---------- */
 function caricaScript(src){ return new Promise((ok, ko) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = ko; document.head.appendChild(s); }); }
+async function jsPDFpronto(){
+  if (window.jspdf) return true;
+  try {
+    await caricaScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+    await caricaScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js');
+    return true;
+  } catch { toast('Serve la connessione per creare il PDF'); return false; }
+}
+const VIOLA_RGB = [109,79,194];
+function intestazionePDF(doc, titolo, sottotitolo){
+  doc.setFillColor(...VIOLA_RGB); doc.rect(0, 0, 210, 26, 'F');
+  doc.setTextColor(255); doc.setFont('helvetica','bold'); doc.setFontSize(17);
+  doc.text(titolo, 14, 12);
+  doc.setFont('helvetica','normal'); doc.setFontSize(11); doc.text(sottotitolo, 14, 20);
+  doc.setFontSize(8); doc.text('Creato il ' + new Date().toLocaleDateString('it-IT') + ' da ' + NOMI[io], 196, 20, { align: 'right' });
+  doc.setTextColor(34,29,51);
+}
+function titoloSezione(doc, testo){
+  let y = doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : 36;
+  if (y > 265){ doc.addPage(); y = 20; }
+  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.text(testo, 14, y);
+  return y + 3;
+}
+function numeriPagine(doc){
+  const n = doc.getNumberOfPages();
+  for (let i = 1; i <= n; i++){ doc.setPage(i); doc.setFontSize(8); doc.setTextColor(140); doc.text(`Pagina ${i} di ${n}`, 196, 290, { align: 'right' }); }
+}
 async function creaPDF(){
-  if (!window.jspdf){
-    try {
-      await caricaScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
-      await caricaScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js');
-    } catch { toast('Serve la connessione per creare il PDF'); return; }
-  }
+  if (!await jsPDFpronto()) return;
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const ym = meseCorrente, titoloMese = nomeMese(ym);
@@ -887,6 +984,140 @@ async function creaPDF(){
   doc.save(`Spese Viola e Alice - ${ym}.pdf`);
 }
 
+/* ---------- pagina Riepilogo ---------- */
+let annoCorrente = new Date().getFullYear();
+let vista = 'spese';
+const MESI = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+function datiAnno(anno){
+  const spese = movimenti.filter(m => m.tipo === 'spesa' && m.data.startsWith(anno + '-')).sort((a,b) => a.data.localeCompare(b.data));
+  const pag = movimenti.filter(m => m.tipo === 'pagamento' && m.data.startsWith(anno + '-'));
+  const tot = spese.reduce((s,m) => s + m.importo, 0);
+  const pagF = spese.filter(m => m.pagatoDa === 'filippo').reduce((s,m) => s + m.importo, 0);
+  const caricoF = spese.reduce((s,m) => s + quotaFCent(m), 0);
+  const somma = (chiave) => { const o = {}; for (const m of spese){ const k = chiave(m); o[k] = (o[k] || 0) + m.importo; } return Object.entries(o).sort((a,b) => b[1] - a[1]); };
+  const mesi = MESI.map((n, i) => [n, spese.filter(m => +m.data.slice(5,7) === i+1).reduce((s,m) => s + m.importo, 0)]);
+  const detr = spese.filter(m => m.detraibile);
+  const gruppi730 = ['viola','alice','filippo','simona'].map(k => {
+    const voci = detr.filter(m => m.detraibile.intestatario === k);
+    return { k, voci, tot: voci.reduce((s,m) => s + m.detraibile.importo, 0) };
+  }).filter(g => g.voci.length);
+  return {
+    spese, pag, tot, pagF, pagS: tot - pagF, caricoF, caricoS: tot - caricoF,
+    pagFS: pag.filter(m => m.da === 'filippo').reduce((s,m) => s + m.importo, 0),
+    pagSF: pag.filter(m => m.da === 'simona').reduce((s,m) => s + m.importo, 0),
+    perCat: somma(m => m.categoria), perFiglia: somma(m => PER[m.per] || 'Viola e Alice'), mesi, gruppi730,
+    tot730: gruppi730.reduce((s,g) => s + g.tot, 0),
+  };
+}
+const barre = (righe, max) => righe.map(([nome, v]) => `<div class="barra"><div class="testa"><span>${esc(nome)}</span><b>${euro(v)}</b></div>
+  <div class="fondo"><div class="pieno" style="width:${max ? Math.max(2, Math.round(v / max * 100)) : 0}%"></div></div></div>`).join('');
+function disegnaRiepilogo(){
+  const d = datiAnno(annoCorrente);
+  $('#anno-nome').textContent = annoCorrente;
+  const riga = (t, v, cl='') => `<div class="riga-tot ${cl}"><span>${t}</span><b>${v}</b></div>`;
+  $('#r-totali').innerHTML = !d.spese.length ? '<p class="info">Nessuna spesa registrata in questo anno.</p>' :
+    riga('Totale spese', euro(d.tot) + ` <span class="info">(${d.spese.length})</span>`, 'grande')
+    + riga('<span class="chi filippo">Filippo</span>: pagato / a suo carico', `${euro(d.pagF)} / ${euro(d.caricoF)}`)
+    + riga('<span class="chi simona">Simona</span>: pagato / a suo carico', `${euro(d.pagS)} / ${euro(d.caricoS)}`)
+    + (d.pag.length ? riga('Pagamenti tra voi', `F→S ${euro(d.pagFS)} · S→F ${euro(d.pagSF)}`) : '');
+  const maxCat = d.perCat[0]?.[1] || 0;
+  $('#r-cat').innerHTML = d.perCat.length ? barre(d.perCat, maxCat) : '<p class="info">—</p>';
+  $('#r-figlie').innerHTML = d.perFiglia.length ? barre(d.perFiglia, d.perFiglia[0][1]) : '<p class="info">—</p>';
+  const mesiPieni = d.mesi.filter(([,v]) => v);
+  $('#r-mesi').innerHTML = mesiPieni.length ? barre(mesiPieni, Math.max(...mesiPieni.map(x => x[1]))) : '<p class="info">—</p>';
+  $('#r-730').innerHTML = !d.gruppi730.length
+    ? '<p class="info">Nessuna spesa segnata come detraibile in questo anno. Mettila con la spunta “Detraibile per il 730” dentro la spesa.</p>'
+    : riga('Totale detraibile', euro(d.tot730), 'grande') + d.gruppi730.map(g => `<div class="gruppo730">
+        <div class="intesta"><span>Codice fiscale di ${INTESTATARI[g.k]}</span><span>${euro(g.tot)}</span></div>
+        ${g.voci.map(m => `<div class="voce730" data-id="${m.id}"><span><span class="d">${dataBreve(m.data)}</span> ${esc(m.descrizione)}${m.foto ? ' 📎' : ' <span class="info">(senza foto)</span>'}</span><b>${euro(m.detraibile.importo)}</b></div>`).join('')}
+      </div>`).join('');
+  $('#btn-pdf-730').disabled = !d.gruppi730.length;
+  $('#btn-pdf-anno').disabled = !d.spese.length;
+}
+function mostraVista(v){
+  vista = v;
+  $('#vista-spese').classList.toggle('nascosto', v !== 'spese');
+  $('#vista-riepilogo').classList.toggle('nascosto', v !== 'riepilogo');
+  $('#btn-nuova').classList.toggle('nascosto', v !== 'spese');
+  document.querySelectorAll('#schede button').forEach(b => b.classList.toggle('on', b.dataset.vista === v));
+  if (v === 'riepilogo') disegnaRiepilogo();
+  window.scrollTo(0, 0);
+}
+$('#schede').onclick = (e) => { const b = e.target.closest('[data-vista]'); if (b) mostraVista(b.dataset.vista); };
+$('#anno-prec').onclick = () => { annoCorrente--; disegnaRiepilogo(); };
+$('#anno-succ').onclick = () => { annoCorrente++; disegnaRiepilogo(); };
+$('#r-730').onclick = (e) => { const r = e.target.closest('[data-id]'); if (!r) return; const m = movimenti.find(x => x.id === r.dataset.id); if (m) apriSpesa(m); };
+
+async function pdfAnno(){
+  if (!await jsPDFpronto()) return;
+  const d = datiAnno(annoCorrente), doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
+  intestazionePDF(doc, 'Spese Viola & Alice', 'Riepilogo anno ' + annoCorrente);
+  const base = { styles: { fontSize: 9, cellPadding: 2 }, headStyles: { fillColor: VIOLA_RGB }, columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' } } };
+  doc.autoTable({ startY: 32, theme: 'plain', styles: { fontSize: 10, cellPadding: 1.4 },
+    columnStyles: { 0: { cellWidth: 80, textColor: [111,106,128] }, 1: { fontStyle: 'bold' } },
+    body: [
+      ['Totale spese', `${euro(d.tot)} (${d.spese.length} spese)`],
+      ['Filippo: pagato / a suo carico', `${euro(d.pagF)} / ${euro(d.caricoF)}`],
+      ['Simona: pagato / a suo carico', `${euro(d.pagS)} / ${euro(d.caricoS)}`],
+      ['Pagamenti da Filippo a Simona', euro(d.pagFS)],
+      ['Pagamenti da Simona a Filippo', euro(d.pagSF)],
+      ['Totale detraibile (730)', euro(d.tot730)],
+    ] });
+  let y = titoloSezione(doc, 'Per categoria');
+  doc.autoTable({ ...base, startY: y, head: [['Categoria', 'Totale', '% sul totale']], body: d.perCat.map(([c,v]) => [c, euro(v), (v / d.tot * 100).toFixed(1).replace('.', ',') + '%']) });
+  y = titoloSezione(doc, 'Per figlia');
+  doc.autoTable({ ...base, startY: y, head: [['Per', 'Totale', '% sul totale']], body: d.perFiglia.map(([c,v]) => [c, euro(v), (v / d.tot * 100).toFixed(1).replace('.', ',') + '%']) });
+  y = titoloSezione(doc, 'Per mese');
+  doc.autoTable({ ...base, startY: y, head: [['Mese', 'Totale']], body: d.mesi.map(([n,v]) => [n, v ? euro(v) : '—']), foot: [['Totale', euro(d.tot)]],
+    footStyles: { fillColor: [236,230,251], textColor: [34,29,51] }, showFoot: 'lastPage' });
+  y = titoloSezione(doc, 'Elenco spese');
+  doc.autoTable({ startY: y, head: [['Data','Descrizione','Categoria','Pagata da','Importo','Quota F','Quota S']],
+    body: d.spese.map(m => { const q = quotaFCent(m); return [dataBreve(m.data), m.descrizione + (m.detraibile ? ' (730)' : ''), m.categoria, NOMI[m.pagatoDa], euro(m.importo), euro(q), euro(m.importo - q)]; }),
+    styles: { fontSize: 8, cellPadding: 1.8 }, headStyles: { fillColor: VIOLA_RGB }, columnStyles: { 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' } } });
+  numeriPagine(doc);
+  doc.save(`Spese Viola e Alice - riepilogo ${annoCorrente}.pdf`);
+}
+
+const dimensioniImg = (url) => new Promise((ok) => { const i = new Image(); i.onload = () => ok({ w: i.naturalWidth, h: i.naturalHeight }); i.onerror = () => ok(null); i.src = url; });
+async function pdf730(){
+  if (!await jsPDFpronto()) return;
+  const d = datiAnno(annoCorrente); if (!d.gruppi730.length) return;
+  toast('Preparo il PDF con gli scontrini…');
+  const doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
+  intestazionePDF(doc, 'Spese detraibili ' + annoCorrente, 'Spese per Viola e Alice - riepilogo per la dichiarazione dei redditi');
+  doc.autoTable({ startY: 32, theme: 'plain', styles: { fontSize: 10, cellPadding: 1.4 },
+    columnStyles: { 0: { cellWidth: 80, textColor: [111,106,128] }, 1: { fontStyle: 'bold' } },
+    body: [['Totale detraibile', euro(d.tot730)], ...d.gruppi730.map(g => ['Codice fiscale di ' + INTESTATARI[g.k], `${euro(g.tot)} (${g.voci.length} ${g.voci.length === 1 ? 'documento' : 'documenti'})`])] });
+  const allegati = [];
+  for (const g of d.gruppi730){
+    const y = titoloSezione(doc, 'Codice fiscale di ' + INTESTATARI[g.k]);
+    doc.autoTable({ startY: y, head: [['N.','Data','Descrizione','Categoria','Pagata da','Totale','Detraibile']],
+      body: g.voci.map(m => { if (m.foto) allegati.push(m); return [m.foto ? 'All. ' + allegati.length : '—', dataBreve(m.data), m.descrizione, m.categoria, NOMI[m.pagatoDa], euro(m.importo), euro(m.detraibile.importo)]; }),
+      foot: [['', '', 'Totale', '', '', '', euro(g.tot)]], showFoot: 'lastPage',
+      styles: { fontSize: 8.5, cellPadding: 2 }, headStyles: { fillColor: [31,138,91] }, footStyles: { fillColor: [223,243,233], textColor: [34,29,51] },
+      columnStyles: { 5: { halign: 'right' }, 6: { halign: 'right' } } });
+  }
+  // allegati: foto degli scontrini, due per pagina
+  let pos = 0;
+  for (let i = 0; i < allegati.length; i++){
+    const m = allegati[i];
+    let url = null; try { url = await db.leggiFoto(m.id); } catch {}
+    if (!url) continue;
+    const dim = await dimensioniImg(url); if (!dim) continue;
+    if (pos === 0){ doc.addPage(); doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Allegati: scontrini', 14, 14); }
+    const top = pos === 0 ? 20 : 152, boxW = 182, boxH = 122;
+    const k = Math.min(boxW / dim.w, boxH / dim.h), w = dim.w * k, h = dim.h * k;
+    doc.setFont('helvetica','normal'); doc.setFontSize(9);
+    doc.text(`All. ${i+1} - ${dataBreve(m.data)} - ${m.descrizione} - detraibile ${euro(m.detraibile.importo)}`, 14, top);
+    doc.addImage(url, 'JPEG', 14 + (boxW - w) / 2, top + 3, w, h);
+    pos = (pos + 1) % 2;
+  }
+  numeriPagine(doc);
+  doc.save(`Spese detraibili Viola e Alice ${annoCorrente}.pdf`);
+}
+$('#btn-pdf-anno').onclick = pdfAnno;
+$('#btn-pdf-730').onclick = pdf730;
+
 /* ---------- eventi generali ---------- */
 $('#btn-nuova').onclick = () => apriSpesa();
 $('#btn-pagamento').onclick = () => apriPagamento();
@@ -916,7 +1147,7 @@ $('#btn-esci').onclick = () => db.esci();
     $('#utente').textContent = db.prova ? `${NOMI[io]} · modalità prova` : `${NOMI[io]} · ${u.email}`;
     $('#avviso-prova').classList.toggle('nascosto', !db.prova);
     mostra('app');
-    db.ascolta(lista => { movimenti = lista; disegna(); });
+    db.ascolta(lista => { movimenti = lista; disegna(); if (vista === 'riepilogo') disegnaRiepilogo(); });
   } catch (e){ mostraErroreAccesso(e); }
 })();
 </script>
