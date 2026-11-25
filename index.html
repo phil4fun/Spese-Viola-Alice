@@ -586,11 +586,14 @@ function disegna(){
 
   // novità dall'altro genitore
   const nuove = movimenti.filter(nonVisto), disc = movimenti.filter(m => m.stato === 'discutere');
+  const attesa = movimenti.filter(m => m.creatoDa === io && m.stato !== 'ok' && !vistaDallAltro(m));
+  const lui = `<b class="chi ${ALTRO(io)}">${NOMI[ALTRO(io)]}</b>`;
   const parti = [];
-  if (nuove.length) parti.push(`<b class="chi ${ALTRO(io)}">${NOMI[ALTRO(io)]}</b>: ${nuove.length === 1 ? '1 novità' : nuove.length + ' novità'} da vedere`);
-  if (disc.length) parti.push(`${disc.length} da discutere`);
+  if (nuove.length) parti.push(`🔔 ${nuove.length === 1 ? '1 novità' : nuove.length + ' novità'} di ${lui} da vedere`);
+  if (attesa.length) parti.push(`⏳ ${attesa.length === 1 ? '1 tua voce' : attesa.length + ' tue voci'} ancora da vedere per ${lui}`);
+  if (disc.length) parti.push(`⚠️ ${disc.length} da discutere`);
   $('#banner-nuove').classList.toggle('nascosto', !parti.length);
-  $('#banner-testo').innerHTML = parti.join(' · ');
+  $('#banner-testo').innerHTML = parti.join('<br>');
   $('#btn-tutte-viste').classList.toggle('nascosto', !nuove.length);
 
   // mese
