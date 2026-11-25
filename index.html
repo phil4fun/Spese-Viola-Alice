@@ -112,6 +112,7 @@
   .badge.nuova{background:var(--oro);color:#5a4200}
   .badge.disc{background:#fde8e1;color:var(--rosso)}
   .badge.ok{background:#dff3e9;color:var(--verde)}
+  .badge.attesa{background:var(--sfondo);color:var(--grigio)}
   .chi{font-weight:600}
   .chi.filippo{color:var(--col-filippo)} .chi.simona{color:var(--col-simona)}
   .legenda{display:flex;gap:14px;font-size:12px;color:var(--grigio);margin:2px 4px 6px}
@@ -430,6 +431,9 @@ const nonVisto = (m) => ultimoAltrui(m) > (m.vistoDa?.[io] || 0);
 const segnaVisto = (m) => db.aggiorna(m.id, { ['vistoDa.' + io]: Date.now() }).catch(() => {});
 const puoModificare = (m) => !m || !m.creatoDa || m.creatoDa === io;
 const oraBreve = (t) => new Date(t).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+/* Per chi ha registrato il movimento: l'altro l'ha vista dopo l'ultima modifica? */
+const ultimaModifica = (m) => Math.max(m.creatoIl || 0, m.modificatoIl || 0);
+const vistaDallAltro = (m) => (m.vistoDa?.[ALTRO(m.creatoDa)] || 0) >= ultimaModifica(m);
 function badge(m){
   let b = '';
   if (nonVisto(m)){
@@ -439,7 +443,12 @@ function badge(m){
     b += `<span class="badge nuova">${tipo}</span>`;
   }
   if (m.stato === 'discutere') b += '<span class="badge disc">DA DISCUTERE</span>';
-  else if (m.stato === 'ok' && m.creatoDa === io && m.statoDa !== io) b += `<span class="badge ok">✓ ${NOMI[ALTRO(io)]}</span>`;
+  else if (m.creatoDa === io){
+    const lui = NOMI[ALTRO(io)];
+    if (m.stato === 'ok' && m.statoDa === ALTRO(io)) b += `<span class="badge ok">👍 ${lui}</span>`;
+    else if (vistaDallAltro(m)) b += `<span class="badge ok">👁 vista da ${lui}</span>`;
+    else b += `<span class="badge attesa">non ancora vista da ${lui}</span>`;
+  }
   return b;
 }
 const nomeDivisione = (q) => q === 50 ? 'metà' : q === 0 ? 'tutta a Simona' : q === 100 ? 'tutta a Filippo' : `F ${q}% · S ${100-q}%`;
@@ -794,14 +803,21 @@ $('#s-per').addEventListener('change', () => { if ($('#s-detr').checked && !spes
 function disegnaConfronto(m){
   $('#s-confronto').classList.toggle('nascosto', !m);
   if (!m) return;
-  const altro = m.creatoDa !== io;
-  $('#s-ok').classList.toggle('nascosto', !(altro || m.stato === 'discutere'));
+  const controllore = m.creatoDa !== io;          // solo chi NON l'ha registrata può spuntarla
+  const lui = NOMI[ALTRO(m.creatoDa)];
+  $('#s-ok').classList.toggle('nascosto', !controllore);
+  $('#s-disc').classList.toggle('nascosto', !controllore || m.stato === 'discutere');
   $('#s-ok').textContent = m.stato === 'discutere' ? '✓ Risolto' : (m.stato === 'ok' ? '👍 Già segnata: va bene' : '👍 Va bene');
   $('#s-ok').disabled = m.stato === 'ok';
-  $('#s-disc').classList.toggle('nascosto', m.stato === 'discutere');
+  const vista = m.vistoDa?.[ALTRO(m.creatoDa)];
+  let statoTxt = '';
+  if (m.stato === 'discutere') statoTxt = `<p class="info" style="color:var(--rosso)">⚠️ ${lui} l'ha segnata come da discutere.${controllore ? '' : ' Rispondi con un commento o correggi la spesa.'}</p>`;
+  else if (m.stato === 'ok') statoTxt = `<p class="info" style="color:var(--verde)">👍 ${lui} ha segnato questa spesa come “va bene”.</p>`;
+  else if (!controllore) statoTxt = vistaDallAltro(m)
+    ? `<p class="info">👁 Vista da ${lui} il ${oraBreve(vista)}.</p>`
+    : `<p class="info">${lui} non l'ha ancora vista${vista ? ' dopo la tua ultima modifica' : ''}.</p>`;
   const cc = m.commenti || [];
-  $('#s-commenti').innerHTML = (m.stato === 'ok' && m.creatoDa === io && m.statoDa !== io ? `<p class="info">✓ ${NOMI[ALTRO(io)]} ha segnato questa spesa come “va bene”.</p>` : '')
-    + (m.stato === 'discutere' ? `<p class="info" style="color:var(--rosso)">⚠️ Segnata come da discutere.</p>` : '')
+  $('#s-commenti').innerHTML = statoTxt
     + cc.map(c => `<div class="commento ${c.da}"><b class="chi ${c.da}">${NOMI[c.da]}</b><span class="quando">${oraBreve(c.quando)}</span><div>${esc(c.testo)}</div></div>`).join('');
   $('#s-comm').value = '';
 }
